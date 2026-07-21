@@ -2,6 +2,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
+import multipart from "@fastify/multipart";
+import rawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
 import { businessRoutes } from "./routes/businesses";
 import { campaignRoutes } from "./routes/campaigns";
@@ -19,6 +21,7 @@ import { opsRoutes } from "./routes/ops";
 import { biRoutes } from "./routes/bi";
 import { billingRoutes } from "./routes/billing";
 import { sopRoutes } from "./routes/sops";
+import { studioRoutes } from "./routes/studio";
 import { tenantPlugin } from "./plugins/tenant";
 
 const app = Fastify({ logger: true });
@@ -27,6 +30,10 @@ async function main() {
   await app.register(cors, { origin: true, credentials: true });
   await app.register(jwt, { secret: process.env.JWT_SECRET || "dev-secret" });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  // Raw body for Stripe webhook signature verification (opt-in per route via config.rawBody)
+  await app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
+  // Multipart for SendGrid Inbound Parse (email replies arrive as multipart/form-data)
+  await app.register(multipart, { attachFieldsToBody: "keyValues", limits: { fileSize: 5_000_000, files: 5 } });
   await app.register(tenantPlugin);
 
   app.get("/health", async () => ({ ok: true, ts: Date.now() }));
@@ -48,6 +55,7 @@ async function main() {
   await app.register(biRoutes, { prefix: "/v1" });
   await app.register(billingRoutes, { prefix: "/v1" });
   await app.register(sopRoutes, { prefix: "/v1" });
+  await app.register(studioRoutes, { prefix: "/v1" });
 
   const port = Number(process.env.PORT || 4000);
   await app.listen({ port, host: "0.0.0.0" });

@@ -3,6 +3,7 @@ import IORedis from "ioredis";
 import { createHash } from "crypto";
 import { prisma } from "@leadhunter/db";
 import { discoverViaPlaces, discoverViaSearch, buildQueries, RawLead } from "@leadhunter/integrations";
+import { consumeQuota } from "@leadhunter/agents";
 
 const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
 const enrichment = new Queue("enrichment", { connection });
@@ -39,6 +40,8 @@ export async function discoveryProcessor(job: Job) {
       const dedupeKey = raw.website
         ? new URL(raw.website).hostname.replace(/^www\./, "")
         : createHash("sha1").update(`${raw.companyName.toLowerCase()}|${raw.city ?? ""}`).digest("hex");
+      const quota = await consumeQuota(b.tenantId, "leads");
+      if (!quota.allowed) { console.log(`discovery: lead quota reached for tenant ${b.tenantId} (${quota.count}/${quota.limit}, plan ${quota.plan})`); break; }
       try {
         const lead = await prisma.lead.create({
           data: {

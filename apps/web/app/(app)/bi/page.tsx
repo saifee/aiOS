@@ -1,33 +1,65 @@
 "use client";
 import useSWR from "swr";
-import { fetcher, businessId } from "@/lib/api";
+import { useState } from "react";
+import { fetcher, api, businessId } from "@/lib/api";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const money = (n: number) => new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(n || 0);
 const HEALTH: Record<string, string> = { green: "#1F7A5C", yellow: "#C98A2D", red: "#B4452F" };
+const CATS = ["salaries", "infrastructure", "software", "marketing", "contractors", "office", "other"];
 
 export default function BI() {
   const bid = businessId();
-  const { data } = useSWR(bid ? `/businesses/${bid}/bi/overview` : null, fetcher);
+  const { data, mutate } = useSWR(bid ? `/businesses/${bid}/bi/overview` : null, fetcher);
+  const [exp, setExp] = useState<{ category: string; amount: string; vendor: string } | null>(null);
   if (!data) return <p className="text-sm text-ink/50">Crunching the numbers…</p>;
+
+  async function addExpense() {
+    if (!exp || !exp.amount) return;
+    await api(`/businesses/${bid}/expenses`, { method: "POST", body: JSON.stringify({ category: exp.category, amount: Number(exp.amount), vendor: exp.vendor || undefined }) });
+    setExp(null); mutate();
+  }
 
   const kpis = [
     { label: "Revenue (MTD)", value: money(data.revenue.mtd) + " SAR" },
-    { label: "Cash position", value: money(data.cash.position) + " SAR" },
+    { label: "Profit (MTD)", value: (data.profit?.expensesTracked ? money(data.profit.mtd) : "—") + (data.profit?.expensesTracked ? " SAR" : ""), accent: data.profit?.mtd > 0, warn: data.profit?.expensesTracked && data.profit?.mtd < 0 },
+    { label: "Expenses (MTD)", value: money(data.profit?.expensesMTD) + " SAR" },
     { label: "Cash runway", value: data.cash.runwayMonths != null ? data.cash.runwayMonths + " mo" : "—", warn: data.cash.runwayMonths != null && data.cash.runwayMonths < 3 },
     { label: "Weighted pipeline", value: money(data.pipeline.weightedValue) + " SAR", accent: true },
     { label: "Expected revenue", value: money(data.pipeline.expectedRevenue) + " SAR", accent: true },
     { label: "Overdue", value: money(data.receivables.overdueAmount) + " SAR", warn: data.receivables.overdueAmount > 0 },
     { label: "Conversion", value: data.sales.conversionRate + "%" },
-    { label: "Satisfaction", value: data.satisfaction != null ? data.satisfaction + "%" : "—" },
   ];
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Business Intelligence</h1>
-        <p className="text-sm text-ink/60">Every number computed live from the system of record — updated as your agents work.</p>
+      <header className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Business Intelligence</h1>
+          <p className="text-sm text-ink/60">Every number computed live from the system of record — updated as your agents work.</p>
+        </div>
+        <button className="btn-ghost" onClick={() => setExp({ category: "software", amount: "", vendor: "" })}>+ Log expense</button>
       </header>
+
+      {!data.profit?.expensesTracked && (
+        <div className="card border-amber/40 bg-amber/5">
+          <p className="text-sm text-ink/70">No expenses logged yet — profit and cash runway show "—" until you record expenses (so the numbers stay honest). The Finance agent can also log these automatically.</p>
+        </div>
+      )}
+
+      {exp && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/30" onClick={() => setExp(null)}>
+          <div className="card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-3 text-lg font-semibold">Log expense</h2>
+            <select className="input mb-3" value={exp.category} onChange={(e) => setExp({ ...exp, category: e.target.value })}>
+              {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input className="input mb-3" type="number" placeholder="Amount (SAR)" value={exp.amount} onChange={(e) => setExp({ ...exp, amount: e.target.value })} />
+            <input className="input mb-4" placeholder="Vendor (optional)" value={exp.vendor} onChange={(e) => setExp({ ...exp, vendor: e.target.value })} />
+            <button className="btn w-full justify-center" onClick={addExpense}>Save expense</button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {kpis.map((k) => (

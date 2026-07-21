@@ -7,3 +7,8 @@ export * from "./notify";
 export * from "./embeddings";
 export * from "./telephony";
 export * from "./billing";
+export * from "./github";
+export * from "./images";
+export * from "./video";
+export * from "./social";
+export * from "./crypto";

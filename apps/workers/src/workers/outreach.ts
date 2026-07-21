@@ -3,6 +3,7 @@ import IORedis from "ioredis";
 import { prisma } from "@leadhunter/db";
 import { sendEmail, sendWhatsAppTemplate, sendWhatsAppText } from "@leadhunter/integrations";
 import { ai } from "../ai";
+import { consumeQuota } from "@leadhunter/agents";
 
 const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
 const followup = new Queue("followup", { connection });
@@ -38,6 +39,12 @@ export async function outreachProcessor(job: Job) {
   // Gate 3: working hours
   if (!withinWorkingHours(b.timezone, b.workingHoursStart, b.workingHoursEnd)) {
     await job.moveToDelayed(nextWorkingTime(b.timezone, b.workingHoursStart), job.token);
+    return;
+  }
+
+  const quota = await consumeQuota(b.tenantId, "outreach");
+  if (!quota.allowed) {
+    await prisma.activity.create({ data: { leadId: lead.id, type: "note", detail: { note: `Outreach paused — monthly plan limit reached (${quota.count}/${quota.limit}, ${quota.plan}).` } } });
     return;
   }
 

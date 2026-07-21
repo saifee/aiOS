@@ -83,7 +83,7 @@ export async function bridgeTwilioToRealtime(twilioWs: WebSocket) {
     const summary = await summarizeCall(transcript, businessId).catch(() => null);
     await prisma.call.updateMany({
       where: { callSid },
-      data: { transcript: transcript as any, status: "completed", endedAt: new Date(), summary: summary?.summary, sentiment: summary?.sentiment, intent: summary?.intent },
+      data: { transcript: transcript as any, status: "completed", endedAt: new Date(), summary: summary?.summary, sentiment: summary?.sentiment, intent: summary?.intent, language: summary?.language },
     });
   };
   twilioWs.on("close", finish);

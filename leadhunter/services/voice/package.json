@@ -1,7 +1,0 @@
-{
-  "name": "@leadhunter/voice",
-  "version": "1.0.0",
-  "scripts": { "dev": "tsx watch src/server.ts", "build": "tsc -p tsconfig.json", "start": "node dist/server.js", "lint": "echo ok", "test": "echo ok" },
-  "dependencies": { "@leadhunter/db": "*", "@leadhunter/integrations": "*", "ws": "^8.17.0" },
-  "devDependencies": { "tsx": "^4.16.0", "typescript": "^5.5.0", "@types/ws": "^8.5.0", "@types/node": "^20.0.0" }
-}

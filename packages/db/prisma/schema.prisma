@@ -1,5 +1,7 @@
 // LeadHunter AI — multi-tenant schema
-generator client { provider = "prisma-client-js" }
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "postgresql"
@@ -20,7 +22,13 @@ model Tenant {
   auditLogs        AuditLog[]
 }
 
-enum Plan { TRIAL STARTER GROWTH SCALE ENTERPRISE }
+enum Plan {
+  TRIAL
+  STARTER
+  GROWTH
+  SCALE
+  ENTERPRISE
+}
 
 model User {
   id            String         @id @default(cuid())
@@ -42,7 +50,12 @@ model Membership {
   @@unique([tenantId, userId])
 }
 
-enum Role { OWNER ADMIN MEMBER VIEWER }
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
 
 // ────────────── Business workspace ──────────────
 
@@ -120,8 +133,19 @@ model Campaign {
   @@index([businessId])
 }
 
-enum CampaignStatus { DRAFT ACTIVE PAUSED COMPLETED }
-enum Channel { EMAIL WHATSAPP LINKEDIN SMS CALL }
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+enum Channel {
+  EMAIL
+  WHATSAPP
+  LINKEDIN
+  SMS
+  CALL
+}
 
 // ────────────── Leads / CRM ──────────────
 
@@ -171,7 +195,19 @@ model Lead {
   @@index([businessId, leadScore])
 }
 
-enum Stage { FOUND QUALIFIED CONTACTED REPLIED INTERESTED MEETING_SCHEDULED PROPOSAL_SENT NEGOTIATION WON LOST ARCHIVED }
+enum Stage {
+  FOUND
+  QUALIFIED
+  CONTACTED
+  REPLIED
+  INTERESTED
+  MEETING_SCHEDULED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+  ARCHIVED
+}
 
 model Contact {
   id        String  @id @default(cuid())
@@ -222,8 +258,21 @@ model Message {
   @@index([status, scheduledAt])
 }
 
-enum Direction { OUTBOUND INBOUND }
-enum MsgStatus { QUEUED SCHEDULED SENT DELIVERED OPENED REPLIED BOUNCED FAILED SUPPRESSED }
+enum Direction {
+  OUTBOUND
+  INBOUND
+}
+enum MsgStatus {
+  QUEUED
+  SCHEDULED
+  SENT
+  DELIVERED
+  OPENED
+  REPLIED
+  BOUNCED
+  FAILED
+  SUPPRESSED
+}
 
 model Conversation {
   id            String    @id @default(cuid())
@@ -238,7 +287,11 @@ model Conversation {
   lead          Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
 }
 
-enum ConvState { AI_HANDLING HUMAN_HANDOFF CLOSED }
+enum ConvState {
+  AI_HANDLING
+  HUMAN_HANDOFF
+  CLOSED
+}
 
 model Meeting {
   id       String   @id @default(cuid())
@@ -536,4 +589,72 @@ model SopRun {
   startedAt DateTime  @default(now())
   endedAt   DateTime?
   sop       Sop       @relation(fields: [sopId], references: [id], onDelete: Cascade)
+}
+
+// Expenses — makes BI profit, cash flow, and runway real (not estimated).
+model Expense {
+  id         String   @id @default(cuid())
+  businessId String
+  category   String   // salaries | infrastructure | software | marketing | contractors | office | other
+  vendor     String?
+  amount     Float
+  currency   String   @default("SAR")
+  recurring  Boolean  @default(false)
+  incurredAt DateTime @default(now())
+  note       String?
+  createdAt  DateTime @default(now())
+  @@index([businessId, incurredAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TIER 3 — Dev Swarm, Creative hands, Social publishing
+// ═══════════════════════════════════════════════════════════════
+
+// One run of the multi-model developer swarm.
+model SwarmRun {
+  id          String    @id @default(cuid())
+  businessId  String
+  task        String
+  repo        String?   // owner/name for GitHub PR
+  status      String    @default("running") // running | review | testing | awaiting_approval | done | failed
+  stages      Json?     // [{ role, model, output, at }]
+  changeset   Json?     // [{ path, content }]
+  testOutput  String?
+  testsPassed Boolean?
+  prUrl       String?
+  branch      String?
+  createdAt   DateTime  @default(now())
+  endedAt     DateTime?
+  @@index([businessId, createdAt])
+}
+
+// Generated creative assets (images, video jobs).
+model MediaAsset {
+  id          String   @id @default(cuid())
+  businessId  String
+  kind        String   // image | video
+  prompt      String
+  provider    String   // openai | heygen | ...
+  status      String   @default("ready") // pending | ready | failed
+  url         String?
+  providerRef String?  // provider job id
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  @@index([businessId, kind])
+}
+
+// Marketing content queued/published across social channels.
+model SocialPost {
+  id          String    @id @default(cuid())
+  businessId  String
+  channel     String    // linkedin | facebook | instagram | x | tiktok | youtube
+  content     String
+  mediaUrl    String?
+  status      String    @default("draft") // draft | scheduled | published | failed
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  providerRef String?
+  error       String?
+  createdAt   DateTime  @default(now())
+  @@index([businessId, status])
 }

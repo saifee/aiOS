@@ -1,5 +1,5 @@
 import { prisma } from "@leadhunter/db";
-import { sendWhatsAppText } from "@leadhunter/integrations";
+import { sendWhatsAppText, redirectCallToHuman } from "@leadhunter/integrations";
 
 /** Function tools the receptionist can call mid-call (OpenAI Realtime format). */
 export const receptionistTools = [
@@ -32,9 +32,14 @@ export async function runReceptionistTool(name: string, args: any, ctx: { busine
     case "take_message":
       await prisma.call.updateMany({ where: { callSid: ctx.callSid }, data: { intent: "message", summary: args.message } });
       return { saved: true };
-    case "transfer_call":
+    case "transfer_call": {
+      const biz = ctx.businessId ? await prisma.business.findUnique({ where: { id: ctx.businessId }, select: { notificationPrefs: true } }) : null;
+      const toNumber = (biz?.notificationPrefs as any)?.transferNumber || process.env.DEFAULT_TRANSFER_NUMBER;
       await prisma.call.updateMany({ where: { callSid: ctx.callSid }, data: { status: "transferred", intent: "urgent" } });
-      return { transferring: true, note: "Tell the caller you're connecting them now." };
+      if (!toNumber) return { transferring: false, note: "No human transfer number configured; take a message instead." };
+      try { await redirectCallToHuman(ctx.callSid, toNumber); return { transferring: true, note: "Tell the caller you're connecting them now." }; }
+      catch (e: any) { return { transferring: false, error: String(e.message), note: "Transfer failed; offer to take a message." }; }
+    }
     default: return { error: "unknown tool" };
   }
 }

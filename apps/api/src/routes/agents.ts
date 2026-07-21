@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
 import { z } from "zod";
-import { runAgent, DEPARTMENTS } from "@leadhunter/agents";
+import { runAgent, DEPARTMENTS, deliverApprovedPR } from "@leadhunter/agents";
 
 export async function agentRoutes(app: FastifyInstance) {
   app.addHook("onRequest", (req) => app.authenticate(req));
@@ -43,6 +43,12 @@ export async function agentRoutes(app: FastifyInstance) {
     const appr = await prisma.approval.findUnique({ where: { id } });
     if (!appr) throw Object.assign(new Error("Not found"), { statusCode: 404 });
     await app.requireBusiness(req, appr.businessId);
-    return prisma.approval.update({ where: { id }, data: { status: decision, decidedBy: `user:${req.auth!.userId}`, decidedAt: new Date() } });
+    const updated = await prisma.approval.update({ where: { id }, data: { status: decision, decidedBy: `user:${req.auth!.userId}`, decidedAt: new Date() } });
+    // Execute the approved action
+    if (decision === "approved" && appr.action === "open_pull_request") {
+      const runId = (appr.payload as any)?.runId;
+      if (runId) { const url = await deliverApprovedPR(runId).catch((e) => ({ error: String(e.message) })); return { ...updated, prUrl: url }; }
+    }
+    return updated;
   });
 }

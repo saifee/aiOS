@@ -11,6 +11,8 @@ import { learningProcessor } from "./workers/learning";
 import { agentRunProcessor } from "./workers/agentrun";
 import { orchestrationProcessor } from "./workers/orchestration";
 import { execProcessor } from "./workers/exec";
+import { socialProcessor } from "./workers/social";
+import { swarmProcessor } from "./workers/swarm";
 
 const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
 const opts = { connection, concurrency: 5 };
@@ -26,6 +28,8 @@ new Worker("learning", learningProcessor, opts);
 new Worker("agent-run", agentRunProcessor, { ...opts, concurrency: 4 });
 new Worker("orchestration", orchestrationProcessor, opts);
 new Worker("exec", execProcessor, opts);
+new Worker("social", socialProcessor, opts);
+new Worker("swarm", swarmProcessor, { ...opts, concurrency: 2 });
 
 // ── Recurring autonomous loops ────────────────────────────────
 async function scheduleCrons() {
@@ -43,6 +47,8 @@ async function scheduleExec() {
   const exec = new Queue("exec", { connection });
   await exec.add("growth-scan", {}, { repeat: { pattern: "0 6 * * *" }, removeOnComplete: true });
   await exec.add("morning-brief", {}, { repeat: { pattern: "0 7 * * *" }, removeOnComplete: true });
+  const social = new Queue("social", { connection });
+  await social.add("publish-due", {}, { repeat: { pattern: "*/5 * * * *" }, removeOnComplete: true });
 }
 scheduleExec().catch(console.error);
 scheduleCrons().then(() => console.log("LeadHunter workers online — autonomous loops scheduled."));

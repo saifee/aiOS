@@ -15,3 +15,15 @@ export async function sendSms(to: string, body: string) {
 export function transferTwiml(toNumber: string) {
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Dial>${toNumber}</Dial></Response>`;
 }
+
+/** Transfer a live call to a human by redirecting the in-progress call to Dial TwiML. */
+export async function redirectCallToHuman(callSid: string, toNumber: string) {
+  if (!process.env.TWILIO_ACCOUNT_SID) throw new Error("Twilio not configured");
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Say>Connecting you now.</Say><Dial>${toNumber}</Dial></Response>`;
+  const form = new URLSearchParams({ Twiml: twiml });
+  const res = await fetch(`${BASE}/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Calls/${callSid}.json`, {
+    method: "POST", headers: { Authorization: auth(), "Content-Type": "application/x-www-form-urlencoded" }, body: form,
+  });
+  if (!res.ok) throw new Error(`Twilio transfer ${res.status}: ${await res.text()}`);
+  return res.json();
+}

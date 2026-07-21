@@ -5,9 +5,13 @@
   "scripts": {
     "build": "echo ok",
     "lint": "echo ok",
-    "test": "echo ok"
+    "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.620.0",
     "stripe": "^16.2.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
   }
 }

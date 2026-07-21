@@ -52,13 +52,17 @@ export async function webhookRoutes(app: FastifyInstance) {
     return reply.send({ ok: true });
   });
 
-  // Inbound email reply (SendGrid Inbound Parse posts multipart; simplified JSON here)
+  // Inbound email reply. SendGrid Inbound Parse posts multipart/form-data; the
+  // multipart plugin (attachFieldsToBody) exposes the fields on req.body, so this
+  // works for both SendGrid multipart and plain JSON test posts.
   app.post("/email/inbound", async (req, reply) => {
-    const { from, text } = req.body as any;
-    const email = String(from || "").match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0]?.toLowerCase();
+    const body = (req.body ?? {}) as any;
+    const from = body.from ?? body.From ?? body.sender ?? "";
+    const bodyText = body.text ?? body.plain ?? stripHtml(body.html) ?? "";
+    const email = String(from).match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0]?.toLowerCase();
     if (!email) return reply.send({ ok: true });
     const lead = await prisma.lead.findFirst({ where: { emails: { has: email } } });
-    if (lead) await handleInbound(lead.id, "EMAIL", String(text || ""));
+    if (lead) await handleInbound(lead.id, "EMAIL", String(bodyText));
     return reply.send({ ok: true });
   });
 
@@ -73,6 +77,8 @@ export async function webhookRoutes(app: FastifyInstance) {
     return reply.send({ ok: true });
   });
 }
+
+function stripHtml(h?: string) { return h ? h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : ""; }
 
 const OPT_OUT = /\b(stop|unsubscribe|remove me|لا اريد|إلغاء الاشتراك)\b/i;
 

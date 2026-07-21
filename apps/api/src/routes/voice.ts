@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
+import { consumeQuota } from "@leadhunter/agents";
 
 /**
  * AI Receptionist — Twilio telephony webhooks.
@@ -18,6 +19,16 @@ export async function voiceRoutes(app: FastifyInstance) {
 
     const lead = businessId ? await prisma.lead.findFirst({ where: { businessId, OR: [{ phones: { has: from } }, { whatsapp: from }] } }) : null;
     await prisma.call.create({ data: { businessId: businessId ?? "unknown", leadId: lead?.id, fromNumber: from, toNumber: to, callSid, status: "in_progress" } }).catch(() => {});
+
+    if (businessId) {
+      const tenant = await prisma.business.findUnique({ where: { id: businessId }, select: { tenantId: true } });
+      if (tenant) {
+        const quota = await consumeQuota(tenant.tenantId, "calls");
+        if (!quota.allowed) {
+          return reply.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="Polly.Zeina" language="arb">شكرا لاتصالك. سيعاود فريقنا الاتصال بك قريبا.</Say><Say>Thanks for calling. Our team will call you right back.</Say><Hangup/></Response>`);
+        }
+      }
+    }
 
     const wsUrl = (process.env.VOICE_WS_URL || "wss://your-voice-bridge.example.com").replace(/^http/, "ws");
     reply.type("text/xml").send(

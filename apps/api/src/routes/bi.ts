@@ -22,8 +22,7 @@ export async function biRoutes(app: FastifyInstance) {
       prisma.invoice.aggregate({ where: { businessId, status: "paid" }, _sum: { amount: true }, _count: true }),
       prisma.invoice.aggregate({ where: { businessId, status: "overdue" }, _sum: { amount: true }, _count: true }),
       prisma.invoice.aggregate({ where: { businessId, status: { in: ["sent", "draft"] } }, _sum: { amount: true } }),
-      // Expenses proxy: procurement/approved spend. Placeholder table not in scope → estimate 0 unless tracked.
-      Promise.resolve({ _sum: { amount: 0 } }),
+      prisma.expense.aggregate({ where: { businessId, incurredAt: { gte: monthStart } }, _sum: { amount: true } }),
       prisma.lead.count({ where: { businessId, stage: "WON", updatedAt: { gte: monthStart } } }),
       prisma.lead.groupBy({ by: ["stage"], where: { businessId, stage: { in: ["QUALIFIED", "CONTACTED", "REPLIED", "INTERESTED", "MEETING_SCHEDULED", "PROPOSAL_SENT", "NEGOTIATION"] } }, _count: true }),
       prisma.project.groupBy({ by: ["health"], where: { businessId }, _count: true }),
@@ -51,15 +50,22 @@ export async function biRoutes(app: FastifyInstance) {
     const positive = sentiment.find((s) => s.sentiment === "positive")?._count ?? 0;
     const satisfaction = totalSent ? Math.round((positive / totalSent) * 100) : null;
 
-    // Conversion + cash runway
+    // Conversion + real cash runway from actual expenses
     const contacted = await prisma.lead.count({ where: { businessId, stage: { in: ["CONTACTED", "REPLIED", "INTERESTED", "MEETING_SCHEDULED", "PROPOSAL_SENT", "NEGOTIATION", "WON", "LOST"] } } });
     const won = await prisma.lead.count({ where: { businessId, stage: "WON" } });
-    const monthlyBurn = expensesMTD._sum.amount || avgDeal * 0.6; // if untracked, assume 60% cost ratio
-    const cash = (paidAll._sum.amount ?? 0) - (expensesMTD._sum.amount ?? 0);
-    const runwayMonths = monthlyBurn ? +(cash / monthlyBurn).toFixed(1) : null;
+    const expMTD = expensesMTD._sum.amount ?? 0;
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const trailingExp = await prisma.expense.aggregate({ where: { businessId, incurredAt: { gte: threeMonthsAgo } }, _sum: { amount: true } });
+    const allExp = await prisma.expense.aggregate({ where: { businessId }, _sum: { amount: true } });
+    const monthlyBurn = (trailingExp._sum.amount ?? 0) / 3;
+    const profitMTD = (paidMTD._sum.amount ?? 0) - expMTD;
+    const cash = (paidAll._sum.amount ?? 0) - (allExp._sum.amount ?? 0);
+    const expensesTracked = (allExp._sum.amount ?? 0) > 0;
+    const runwayMonths = expensesTracked && monthlyBurn ? +(cash / monthlyBurn).toFixed(1) : null;
 
     return {
       revenue: { mtd: paidMTD._sum.amount ?? 0, allTime: paidAll._sum.amount ?? 0, trend },
+      profit: { mtd: profitMTD, expensesMTD: expMTD, monthlyBurn: Math.round(monthlyBurn), expensesTracked },
       cash: { position: cash, runwayMonths, recurringAvg: recurring._avg?.amount ?? 0 },
       receivables: { overdueAmount: overdue._sum.amount ?? 0, overdueCount: overdue._count, outstanding: draftSent._sum.amount ?? 0 },
       pipeline: { weightedValue: Math.round(weightedPipeline), byStage: pipeline, expectedRevenue: Math.round(weightedPipeline * 0.4) },

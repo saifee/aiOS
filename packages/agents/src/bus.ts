@@ -8,6 +8,7 @@ export const connection = new IORedis(process.env.REDIS_URL || "redis://localhos
  *  out to the orchestrator queue, which decides which agents should react. */
 export const orchestrationQueue = new Queue("orchestration", { connection });
 export const agentQueue = new Queue("agent-run", { connection });
+export const swarmQueue = new Queue("swarm", { connection });
 
 export type DomainEvent = {
   businessId: string;
@@ -23,6 +24,10 @@ export async function publishEvent(evt: DomainEvent) {
 /** Fire-and-track an agent run (a "shift"). The agent-run worker executes it. */
 export async function dispatchAgent(businessId: string, role: string, input: Record<string, unknown>, trigger = "event") {
   await agentQueue.add("run", { businessId, role, input, trigger }, { removeOnComplete: true });
+}
+
+export async function dispatchSwarm(businessId: string, task: string, repo?: string) {
+  await swarmQueue.add("build", { businessId, task, repo }, { removeOnComplete: true });
 }
 
 /** One AI employee messages another (handled by orchestrator → dispatchAgent). */

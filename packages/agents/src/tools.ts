@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { prisma } from "@leadhunter/db";
-import { sendEmail, sendWhatsAppText, notifySlack } from "@leadhunter/integrations";
+import { sendEmail, sendWhatsAppText, notifySlack, discoverViaSearch, discoverViaPlaces, generateImage, createAvatarVideo } from "@leadhunter/integrations";
 import { searchKnowledge } from "./memory";
-import { sendAgentMessage, publishEvent } from "./bus";
+import { sendAgentMessage, publishEvent, dispatchSwarm } from "./bus";
 
 export type ToolCtx = { businessId: string; agentRole: string };
 export type Tool = { name: string; description: string; schema: z.ZodType<any>; handler: (input: any, ctx: ToolCtx) => Promise<unknown>; sensitive?: boolean };
@@ -80,6 +80,44 @@ export const TOOLS: Record<string, Tool> = {
     schema: z.object({ leadId: z.string().optional(), number: z.string(), amount: z.number(), currency: z.string().default("SAR"), dueDate: z.string().optional() }),
     handler: async (i, ctx) => prisma.invoice.create({ data: { businessId: ctx.businessId, ...i, dueDate: i.dueDate ? new Date(i.dueDate) : undefined } }),
   },
+  record_expense: {
+    name: "record_expense",
+    description: "Record a business expense so profit, cash flow, and runway stay accurate.",
+    schema: z.object({ category: z.enum(["salaries","infrastructure","software","marketing","contractors","office","other"]), amount: z.number(), vendor: z.string().optional(), currency: z.string().default("SAR"), recurring: z.boolean().default(false), note: z.string().optional(), incurredAt: z.string().optional() }),
+    handler: async (i, ctx) => prisma.expense.create({ data: { businessId: ctx.businessId, category: i.category, amount: i.amount, vendor: i.vendor, currency: i.currency, recurring: i.recurring, note: i.note, incurredAt: i.incurredAt ? new Date(i.incurredAt) : undefined } }),
+  },
+  generate_image: {
+    name: "generate_image",
+    description: "Generate a marketing image from a text brief (logos, social posts, ads, infographics). Returns a stored asset.",
+    schema: z.object({ prompt: z.string(), size: z.enum(["1024x1024","1536x1024","1024x1536"]).default("1024x1024") }),
+    handler: async (i, ctx) => {
+      const { b64 } = await generateImage(i.prompt, i.size);
+      const asset = await prisma.mediaAsset.create({ data: { businessId: ctx.businessId, kind: "image", prompt: i.prompt, provider: "openai", status: "ready", url: `data:image/png;base64,${b64}` } });
+      return { assetId: asset.id, kind: "image" };
+    },
+  },
+  generate_video: {
+    name: "generate_video",
+    description: "Generate an avatar/explainer video from a script. Submits a render job; poll the asset for the final URL.",
+    schema: z.object({ script: z.string() }),
+    handler: async (i, ctx) => {
+      const { videoId } = await createAvatarVideo(i.script);
+      const asset = await prisma.mediaAsset.create({ data: { businessId: ctx.businessId, kind: "video", prompt: i.script.slice(0, 500), provider: "heygen", status: "pending", providerRef: videoId } });
+      return { assetId: asset.id, status: "pending", note: "Video rendering; check the asset shortly." };
+    },
+  },
+  draft_post: {
+    name: "draft_post",
+    description: "Draft or schedule a social post for a channel. Publishing happens after review/schedule.",
+    schema: z.object({ channel: z.enum(["linkedin","facebook","instagram","x","tiktok","youtube"]), content: z.string(), mediaUrl: z.string().optional(), scheduledAt: z.string().optional() }),
+    handler: async (i, ctx) => prisma.socialPost.create({ data: { businessId: ctx.businessId, channel: i.channel, content: i.content, mediaUrl: i.mediaUrl, status: i.scheduledAt ? "scheduled" : "draft", scheduledAt: i.scheduledAt ? new Date(i.scheduledAt) : undefined } }),
+  },
+  delegate_build: {
+    name: "delegate_build",
+    description: "Delegate a coding task to the developer swarm (Claude architects+codes, Gemini reviews, OpenAI fixes, tests run, PR opened for approval). Use for real feature/bugfix work.",
+    schema: z.object({ task: z.string(), repo: z.string().optional() }),
+    handler: async (i, ctx) => { await dispatchSwarm(ctx.businessId, i.task, i.repo); return { queued: true, note: "Swarm dispatched; results appear in Studio → Dev Swarm." }; },
+  },
   message_agent: {
     name: "message_agent", description: "Send a message/task to another department's AI agent.",
     schema: z.object({ toRole: z.string(), body: z.string(), subject: z.string().optional(), payload: z.any().optional() }),
@@ -103,6 +141,17 @@ export const TOOLS: Record<string, Tool> = {
       const prefs: any = (await prisma.business.findUnique({ where: { id: ctx.businessId }, select: { notificationPrefs: true } }))?.notificationPrefs;
       if (prefs?.slackChannel) await notifySlack(prefs.slackChannel, `*${i.title}*\n${i.body}`).catch(() => {});
       return { notified: true };
+    },
+  },
+  find_prospects: {
+    name: "find_prospects",
+    description: "Search the public web for prospect companies matching a query (optionally by city/country). Returns company names + websites you can then create_lead from. Use this to hunt for schools/companies/tenders that need our services.",
+    schema: z.object({ query: z.string(), city: z.string().optional(), country: z.string().optional(), usePlaces: z.boolean().default(false) }),
+    handler: async (i) => {
+      const results = i.usePlaces && i.city
+        ? await discoverViaPlaces(i.query, i.city, i.country).catch(() => [])
+        : await discoverViaSearch(i.query, { city: i.city, country: i.country, source: "growth" }).catch(() => []);
+      return results.slice(0, 15).map((r: any) => ({ companyName: r.companyName, website: r.website, city: r.city, country: r.country, sourceUrl: r.sourceUrl }));
     },
   },
 };

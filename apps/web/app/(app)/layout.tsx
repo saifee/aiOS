@@ -9,6 +9,7 @@ const nav = [
   { href: "/command", label: "Command Center" },
   { href: "/workforce", label: "AI Workforce" },
   { href: "/receptionist", label: "Receptionist" },
+  { href: "/studio", label: "Studio" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/leads", label: "Leads" },
   { href: "/campaigns", label: "Campaigns" },
