@@ -1,0 +1,30 @@
+{
+  "name": "@leadhunter/api",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "echo ok",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/rate-limit": "^9.0.0",
+    "@leadhunter/agents": "*",
+    "@leadhunter/db": "*",
+    "argon2": "^0.40.0",
+    "bullmq": "^5.8.0",
+    "fastify": "^4.28.0",
+    "fastify-plugin": "^4.5.1",
+    "ioredis": "^5.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
+  }
+}

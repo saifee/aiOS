@@ -1,0 +1,25 @@
+{
+  "name": "leadhunter",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Kingslee AIOS \u2014 an AI Operating System for a software agency: every department is an autonomous AI employee on a shared CRM, knowledge base, event bus, and phone system.",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/voice"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:migrate": "npm -w packages/db run migrate",
+    "db:seed": "npm -w packages/db run seed",
+    "docker:up": "docker compose up -d --build"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

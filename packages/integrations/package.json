@@ -1,0 +1,13 @@
+{
+  "name": "@leadhunter/integrations",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo ok",
+    "lint": "echo ok",
+    "test": "echo ok"
+  },
+  "dependencies": {
+    "stripe": "^16.2.0"
+  }
+}

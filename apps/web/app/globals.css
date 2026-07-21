@@ -1,0 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-paper text-ink font-body antialiased; }
+h1, h2, h3 { @apply font-display; }
+
+.card { @apply rounded-xl border border-line bg-white p-5; }
+.btn { @apply inline-flex items-center gap-2 rounded-lg bg-signal px-4 py-2 text-sm font-medium text-white hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-signal focus:ring-offset-2; }
+.btn-ghost { @apply inline-flex items-center rounded-lg border border-line bg-white px-4 py-2 text-sm hover:bg-paper; }
+.input { @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm focus:border-signal focus:outline-none; }
+.tag { @apply inline-block rounded-full bg-signalSoft px-2 py-0.5 text-xs font-medium text-signal; }

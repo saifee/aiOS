@@ -1,0 +1,539 @@
+// LeadHunter AI — multi-tenant schema
+generator client { provider = "prisma-client-js" }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────── Tenancy & Users ──────────────
+
+model Tenant {
+  id               String       @id @default(cuid())
+  name             String
+  slug             String       @unique
+  plan             Plan         @default(TRIAL)
+  stripeCustomerId String?
+  createdAt        DateTime     @default(now())
+  users            Membership[]
+  businesses       Business[]
+  auditLogs        AuditLog[]
+}
+
+enum Plan { TRIAL STARTER GROWTH SCALE ENTERPRISE }
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  passwordHash  String?
+  createdAt     DateTime       @default(now())
+  memberships   Membership[]
+  notifications Notification[]
+}
+
+model Membership {
+  id       String @id @default(cuid())
+  tenantId String
+  userId   String
+  role     Role   @default(MEMBER)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, userId])
+}
+
+enum Role { OWNER ADMIN MEMBER VIEWER }
+
+// ────────────── Business workspace ──────────────
+
+model Business {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  name                String
+  description         String?
+  services            String[]
+  industriesServed    String[]
+  targetCountries     String[]
+  targetCities        String[]
+  keywords            String[]
+  negativeKeywords    String[]
+  idealCompanySizeMin Int?
+  idealCompanySizeMax Int?
+  decisionMakerTitles String[]
+  maxOutreachPerDay   Int           @default(50)
+  workingHoursStart   String        @default("09:00")
+  workingHoursEnd     String        @default("18:00")
+  timezone            String        @default("Asia/Riyadh")
+  languages           String[]      @default(["en"])
+  tone                String        @default("professional")
+  calendarLink        String?
+  minLeadScore        Int           @default(60)
+  branding            Json?
+  notificationPrefs   Json?
+  createdAt           DateTime      @default(now())
+  tenant              Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campaigns           Campaign[]
+  leads               Lead[]
+  templates           Template[]
+  integrations        Integration[]
+  insights            Insight[]
+  agents              Agent[]
+  @@index([tenantId])
+}
+
+model Integration {
+  id          String   @id @default(cuid())
+  businessId  String
+  provider    String
+  status      String   @default("disconnected")
+  credentials Json?
+  config      Json?
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@unique([businessId, provider])
+}
+
+model Template {
+  id         String   @id @default(cuid())
+  businessId String
+  channel    Channel
+  name       String
+  subject    String?
+  body       String
+  language   String   @default("en")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+// ────────────── Campaigns ──────────────
+
+model Campaign {
+  id           String         @id @default(cuid())
+  businessId   String
+  name         String
+  status       CampaignStatus @default(ACTIVE)
+  channels     Channel[]
+  sources      String[]
+  followUpDays Int[]          @default([3, 7, 14])
+  maxFollowUps Int            @default(3)
+  createdAt    DateTime       @default(now())
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  leads        Lead[]
+  @@index([businessId])
+}
+
+enum CampaignStatus { DRAFT ACTIVE PAUSED COMPLETED }
+enum Channel { EMAIL WHATSAPP LINKEDIN SMS CALL }
+
+// ────────────── Leads / CRM ──────────────
+
+model Lead {
+  id              String         @id @default(cuid())
+  businessId      String
+  campaignId      String?
+  companyName     String
+  website         String?
+  industry        String?
+  country         String?
+  city            String?
+  address         String?
+  phones          String[]
+  emails          String[]
+  whatsapp        String?
+  linkedin        String?
+  facebook        String?
+  instagram       String?
+  employeeCount   Int?
+  companySize     String?
+  techStack       String[]
+  growthSignals   Json?
+  painPoints      String[]
+  latestNews      Json?
+  potentialNeed   String?
+  estimatedBudget String?
+  confidenceScore Int            @default(0)
+  leadScore       Int            @default(0)
+  scoreBreakdown  Json?
+  stage           Stage          @default(FOUND)
+  sourceUrl       String?
+  source          String?
+  dedupeKey       String?
+  optedOut        Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  campaign        Campaign?      @relation(fields: [campaignId], references: [id])
+  contacts        Contact[]
+  activities      Activity[]
+  messages        Message[]
+  conversations   Conversation[]
+  meetings        Meeting[]
+  @@unique([businessId, dedupeKey])
+  @@index([businessId, stage])
+  @@index([businessId, leadScore])
+}
+
+enum Stage { FOUND QUALIFIED CONTACTED REPLIED INTERESTED MEETING_SCHEDULED PROPOSAL_SENT NEGOTIATION WON LOST ARCHIVED }
+
+model Contact {
+  id        String  @id @default(cuid())
+  leadId    String
+  name      String?
+  title     String?
+  email     String?
+  phone     String?
+  whatsapp  String?
+  linkedin  String?
+  isPrimary Boolean @default(false)
+  sourceUrl String?
+  verified  Boolean @default(false)
+  lead      Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  @@index([leadId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  leadId    String
+  type      String
+  detail    Json?
+  actor     String   @default("ai")
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  @@index([leadId, createdAt])
+}
+
+// ────────────── Messaging ──────────────
+
+model Message {
+  id          String    @id @default(cuid())
+  leadId      String
+  channel     Channel
+  direction   Direction
+  subject     String?
+  body        String
+  status      MsgStatus @default(QUEUED)
+  providerId  String?
+  openedAt    DateTime?
+  repliedAt   DateTime?
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  meta        Json?
+  createdAt   DateTime  @default(now())
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  @@index([leadId, createdAt])
+  @@index([status, scheduledAt])
+}
+
+enum Direction { OUTBOUND INBOUND }
+enum MsgStatus { QUEUED SCHEDULED SENT DELIVERED OPENED REPLIED BOUNCED FAILED SUPPRESSED }
+
+model Conversation {
+  id            String    @id @default(cuid())
+  leadId        String
+  channel       Channel
+  state         ConvState @default(AI_HANDLING)
+  intent        String?
+  summary       String?
+  handoffReason String?
+  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now())
+  lead          Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+enum ConvState { AI_HANDLING HUMAN_HANDOFF CLOSED }
+
+model Meeting {
+  id       String   @id @default(cuid())
+  leadId   String
+  provider String
+  startsAt DateTime
+  endsAt   DateTime
+  joinUrl  String?
+  status   String   @default("scheduled")
+  lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+// ────────────── Notifications, Learning, Compliance ──────────────
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  kind      String
+  channels  String[]
+  readAt    DateTime?
+  meta      Json?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}
+
+model Insight {
+  id         String   @id @default(cuid())
+  businessId String
+  kind       String
+  data       Json
+  computedAt DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Suppression {
+  id        String   @id @default(cuid())
+  scope     String
+  value     String
+  reason    String
+  createdAt DateTime @default(now())
+  @@unique([scope, value])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  actor     String
+  action    String
+  target    String?
+  detail    Json?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AI OPERATING SYSTEM — agents, memory/knowledge, orchestration
+// ═══════════════════════════════════════════════════════════════
+
+// A registered AI employee (one per department, per business).
+model Agent {
+  id           String     @id @default(cuid())
+  businessId   String
+  role         String     // ceo_assistant | receptionist | sales | marketing | ... (see registry)
+  displayName  String
+  status       String     @default("active")   // active | paused
+  config       Json?      // model, temperature, autonomy level, per-agent overrides
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  runs         AgentRun[]
+  memories     Memory[]
+  @@unique([businessId, role])
+  @@index([businessId])
+}
+
+// One execution of an agent (a "shift"): input, tool calls, output, cost.
+model AgentRun {
+  id         String    @id @default(cuid())
+  agentId    String
+  trigger    String    // event | command | schedule | agent_message | manual
+  input      Json
+  output     Json?
+  toolCalls  Json?     // [{ name, input, result }]
+  status     String    @default("running") // running | done | failed | awaiting_approval
+  tokensIn   Int       @default(0)
+  tokensOut  Int       @default(0)
+  error      String?
+  startedAt  DateTime  @default(now())
+  endedAt    DateTime?
+  agent      Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  @@index([agentId, startedAt])
+}
+
+// Inter-agent messages (the "Slack" between AI employees).
+model AgentMessage {
+  id          String   @id @default(cuid())
+  businessId  String
+  fromRole    String
+  toRole      String
+  subject     String?
+  body        String
+  payload     Json?
+  handled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  @@index([businessId, toRole, handled])
+}
+
+// Domain event log — the event-driven backbone.
+model Event {
+  id         String   @id @default(cuid())
+  businessId String
+  type       String   // lead.qualified | call.completed | proposal.requested | invoice.overdue ...
+  payload    Json
+  createdAt  DateTime @default(now())
+  @@index([businessId, type, createdAt])
+}
+
+// Agent memory + Knowledge Brain chunks. `embedding` is a pgvector column
+// (added via migration SQL). Similarity search runs through raw SQL.
+model Memory {
+  id         String                 @id @default(cuid())
+  businessId String
+  agentId    String?
+  kind       String                 // fact | preference | episodic | summary
+  content    String
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime               @default(now())
+  agent      Agent?                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  @@index([businessId, kind])
+}
+
+model KnowledgeChunk {
+  id         String                 @id @default(cuid())
+  businessId String
+  source     String                 // lead | message | call | doc | invoice | project | contract | email
+  sourceId   String?
+  title      String?
+  content    String
+  metadata   Json?
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime               @default(now())
+  @@index([businessId, source])
+}
+
+// Human-in-the-loop approvals for sensitive AI actions.
+model Approval {
+  id          String    @id @default(cuid())
+  businessId  String
+  agentRole   String
+  action      String    // send_contract | issue_refund | send_proposal | deploy | large_spend ...
+  summary     String
+  payload     Json
+  status      String    @default("pending") // pending | approved | rejected
+  decidedBy   String?
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  @@index([businessId, status])
+}
+
+// ─────────── Operations domain (used by department agents) ───────────
+
+model Project {
+  id          String    @id @default(cuid())
+  businessId  String
+  leadId      String?
+  name        String
+  status      String    @default("active") // planning | active | at_risk | delivered | closed
+  health      String    @default("green")  // green | yellow | red
+  startDate   DateTime?
+  dueDate     DateTime?
+  budget      Float?
+  createdAt   DateTime  @default(now())
+  tasks       Task[]
+  @@index([businessId, status])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  projectId   String?
+  businessId  String
+  title       String
+  assignee    String?   // human email or agent role
+  status      String    @default("todo") // todo | doing | blocked | done
+  priority    String    @default("medium")
+  estimateHrs Float?
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  @@index([businessId, status])
+}
+
+model Proposal {
+  id          String   @id @default(cuid())
+  businessId  String
+  leadId      String?
+  title       String
+  packageName String?
+  amount      Float?
+  currency    String   @default("SAR")
+  status      String   @default("draft") // draft | sent | accepted | rejected
+  contentHtml String?
+  createdAt   DateTime @default(now())
+  @@index([businessId, status])
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  businessId  String
+  leadId      String?
+  number      String
+  amount      Float
+  currency    String    @default("SAR")
+  status      String    @default("draft") // draft | sent | paid | overdue
+  dueDate     DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+  @@index([businessId, status])
+}
+
+// AI Receptionist call records.
+model Call {
+  id          String    @id @default(cuid())
+  businessId  String
+  leadId      String?
+  direction   String    @default("inbound")
+  fromNumber  String
+  toNumber    String
+  provider    String    @default("twilio")
+  callSid     String?   @unique
+  status      String    @default("in_progress") // in_progress | completed | missed | transferred
+  language    String?
+  recordingUrl String?
+  transcript  Json?     // [{ role, text, ts }]
+  summary     String?
+  sentiment   String?
+  intent      String?
+  durationSec Int?
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  @@index([businessId, startedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BILLING (Stripe) + SOP ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique
+  plan                 Plan      @default(TRIAL)
+  status               String    @default("trialing") // trialing | active | past_due | canceled
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  seats                Int       @default(1)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+// Usage counters for plan-limit enforcement (per tenant, per billing month).
+model UsageCounter {
+  id         String   @id @default(cuid())
+  tenantId   String
+  period     String   // "2026-07"
+  metric     String   // leads | outreach | calls | agent_runs
+  count      Int      @default(0)
+  @@unique([tenantId, period, metric])
+}
+
+// A Standard Operating Procedure the AI captured or was taught.
+model Sop {
+  id          String    @id @default(cuid())
+  businessId  String
+  title       String
+  department  String?
+  description String?
+  trigger     String?   // manual | event:<type> | schedule:<cron>
+  steps       Json      // [{ n, action, tool?, owner? }]
+  status      String    @default("draft") // draft | active | archived
+  automation  Json?     // { role, input } — how to run it autonomously
+  source      String    @default("manual") // manual | observed | taught
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  runs        SopRun[]
+  @@index([businessId, status])
+}
+
+model SopRun {
+  id        String    @id @default(cuid())
+  sopId     String
+  status    String    @default("running") // running | done | failed
+  result    Json?
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  sop       Sop       @relation(fields: [sopId], references: [id], onDelete: Cascade)
+}

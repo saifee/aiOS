@@ -1,0 +1,55 @@
+# Minimal production deployment (API + workers + AI + web). Postgres/Redis via managed services.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: leadhunter-api }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: leadhunter-api } }
+  template:
+    metadata: { labels: { app: leadhunter-api } }
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/YOURORG/leadhunter-api:latest
+          ports: [{ containerPort: 4000 }]
+          envFrom: [{ secretRef: { name: leadhunter-env } }]
+          readinessProbe: { httpGet: { path: /health, port: 4000 }, initialDelaySeconds: 5 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: leadhunter-workers }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: leadhunter-workers } }
+  template:
+    metadata: { labels: { app: leadhunter-workers } }
+    spec:
+      containers:
+        - name: workers
+          image: ghcr.io/YOURORG/leadhunter-workers:latest
+          envFrom: [{ secretRef: { name: leadhunter-env } }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: leadhunter-ai }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: leadhunter-ai } }
+  template:
+    metadata: { labels: { app: leadhunter-ai } }
+    spec:
+      containers:
+        - name: ai
+          image: ghcr.io/YOURORG/leadhunter-ai:latest
+          ports: [{ containerPort: 8000 }]
+          envFrom: [{ secretRef: { name: leadhunter-env } }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: leadhunter-api }
+spec: { selector: { app: leadhunter-api }, ports: [{ port: 80, targetPort: 4000 }] }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: leadhunter-ai }
+spec: { selector: { app: leadhunter-ai }, ports: [{ port: 8000, targetPort: 8000 }] }
