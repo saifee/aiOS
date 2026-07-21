@@ -8,7 +8,7 @@ import { bridgeTwilioToRealtime } from "./bridge";
  * relay audio both ways. Twilio and OpenAI Realtime both speak G.711 μ-law,
  * so audio passes through without transcoding.
  */
-const PORT = Number(process.env.VOICE_PORT || 5050);
+const PORT = Number(process.env.PORT || process.env.VOICE_PORT || 5050);
 const wss = new WebSocketServer({ port: PORT, path: "/twilio" });
 
 wss.on("connection", (twilioWs) => {

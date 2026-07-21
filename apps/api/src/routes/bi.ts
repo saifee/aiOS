@@ -33,7 +33,7 @@ export async function biRoutes(app: FastifyInstance) {
     ]);
 
     // Weighted pipeline value by stage probability × avg deal size
-    const avgDeal = paidAll._avg?.amount ?? recurring._avg?.amount ?? 15000;
+    const avgDeal = recurring._avg?.amount ?? 15000;
     const STAGE_P: Record<string, number> = { QUALIFIED: 0.1, CONTACTED: 0.15, REPLIED: 0.25, INTERESTED: 0.4, MEETING_SCHEDULED: 0.55, PROPOSAL_SENT: 0.7, NEGOTIATION: 0.85 };
     const weightedPipeline = pipeline.reduce((s, g) => s + g._count * (STAGE_P[g.stage] ?? 0.1) * avgDeal, 0);
 

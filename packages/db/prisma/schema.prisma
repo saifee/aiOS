@@ -1,11 +1,13 @@
 // LeadHunter AI — multi-tenant schema
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // ────────────── Tenancy & Users ──────────────
@@ -190,6 +192,7 @@ model Lead {
   messages        Message[]
   conversations   Conversation[]
   meetings        Meeting[]
+  calls           Call[]
   @@unique([businessId, dedupeKey])
   @@index([businessId, stage])
   @@index([businessId, leadScore])
@@ -518,6 +521,7 @@ model Call {
   id          String    @id @default(cuid())
   businessId  String
   leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id])
   direction   String    @default("inbound")
   fromNumber  String
   toNumber    String

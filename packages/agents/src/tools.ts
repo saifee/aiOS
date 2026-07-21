@@ -160,6 +160,6 @@ export function toolSpecs(names: string[]) {
   return names.filter((n) => TOOLS[n]).map((n) => ({
     name: TOOLS[n].name,
     description: TOOLS[n].description,
-    input_schema: zodToJsonSchema(TOOLS[n].schema, { target: "openApi3" }) as any,
+    input_schema: zodToJsonSchema(TOOLS[n].schema as any, { target: "openApi3" }) as any,
   }));
 }

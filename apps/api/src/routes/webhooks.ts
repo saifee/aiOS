@@ -76,26 +76,6 @@ export async function webhookRoutes(app: FastifyInstance) {
     }
     return reply.send({ ok: true });
   });
-}
-
-function stripHtml(h?: string) { return h ? h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : ""; }
-
-const OPT_OUT = /\b(stop|unsubscribe|remove me|لا اريد|إلغاء الاشتراك)\b/i;
-
-async function handleInbound(leadId: string, channel: "EMAIL" | "WHATSAPP", text: string) {
-  await prisma.message.create({ data: { leadId, channel, direction: "INBOUND", body: text, status: "REPLIED" } });
-  await prisma.lead.update({ where: { id: leadId }, data: { stage: "REPLIED" } });
-  await prisma.activity.create({ data: { leadId, type: "reply", detail: { channel, preview: text.slice(0, 200) } } });
-
-  if (OPT_OUT.test(text)) {
-    const lead = await prisma.lead.update({ where: { id: leadId }, data: { optedOut: true, stage: "ARCHIVED" } });
-    for (const e of lead.emails)
-      await prisma.suppression.upsert({ where: { scope_value: { scope: "email", value: e } }, update: {}, create: { scope: "email", value: e, reason: "opt_out" } });
-    if (lead.whatsapp)
-      await prisma.suppression.upsert({ where: { scope_value: { scope: "phone", value: lead.whatsapp } }, update: {}, create: { scope: "phone", value: lead.whatsapp, reason: "opt_out" } });
-    return;
-  }
-  await queues.conversation.add("handle-reply", { leadId, channel, text });
 
   // Stripe billing webhook — signature-verified. Keeps Subscription in sync.
   app.post("/stripe", { config: { rawBody: true } }, async (req, reply) => {
@@ -120,5 +100,24 @@ async function handleInbound(leadId: string, channel: "EMAIL" | "WHATSAPP", text
     }
     return reply.send({ received: true });
   });
+}
 
+function stripHtml(h?: string) { return h ? h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : ""; }
+
+const OPT_OUT = /\b(stop|unsubscribe|remove me|لا اريد|إلغاء الاشتراك)\b/i;
+
+async function handleInbound(leadId: string, channel: "EMAIL" | "WHATSAPP", text: string) {
+  await prisma.message.create({ data: { leadId, channel, direction: "INBOUND", body: text, status: "REPLIED" } });
+  await prisma.lead.update({ where: { id: leadId }, data: { stage: "REPLIED" } });
+  await prisma.activity.create({ data: { leadId, type: "reply", detail: { channel, preview: text.slice(0, 200) } } });
+
+  if (OPT_OUT.test(text)) {
+    const lead = await prisma.lead.update({ where: { id: leadId }, data: { optedOut: true, stage: "ARCHIVED" } });
+    for (const e of lead.emails)
+      await prisma.suppression.upsert({ where: { scope_value: { scope: "email", value: e } }, update: {}, create: { scope: "email", value: e, reason: "opt_out" } });
+    if (lead.whatsapp)
+      await prisma.suppression.upsert({ where: { scope_value: { scope: "phone", value: lead.whatsapp } }, update: {}, create: { scope: "phone", value: lead.whatsapp, reason: "opt_out" } });
+    return;
+  }
+  await queues.conversation.add("handle-reply", { leadId, channel, text });
 }
