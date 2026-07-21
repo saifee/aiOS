@@ -1,0 +1,120 @@
+# Render Blueprint for Kingslee AIOS — deploys the whole stack from one file.
+# New → Blueprint → connect this repo → Render reads this file.
+# Docker runtime reuses the Dockerfiles already in the repo.
+
+databases:
+  - name: leadhunter-db
+    plan: starter                 # free expires in 30 days; starter (~$7) for anything real
+    databaseName: leadhunter
+    user: leadhunter
+    # After creation, enable pgvector once (see deploy steps): CREATE EXTENSION vector;
+
+services:
+  # ── Redis (BullMQ queues) — "Key Value" in the dashboard ──
+  - type: redis
+    name: leadhunter-redis
+    plan: free                    # 25MB, fine to start; upgrade for production
+    ipAllowList: []               # empty = internal connections only
+
+  # ── API (public) ──
+  - type: web
+    name: leadhunter-api
+    runtime: docker
+    dockerfilePath: ./infra/docker/api.Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: { name: leadhunter-db, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: redis, name: leadhunter-redis, property: connectionString }
+      - key: AI_SERVICE_URL
+        value: http://leadhunter-ai:8000     # Render private network: http://<service>:<port>
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false               # set to `openssl rand -hex 32` (64 hex chars)
+      - key: APP_URL
+        fromService: { type: web, name: leadhunter-web, property: url }
+      # Provider keys — fill these in the Render dashboard (sync:false = prompt, never in git)
+      - { key: ANTHROPIC_API_KEY, sync: false }
+      - { key: OPENAI_API_KEY, sync: false }
+      - { key: GEMINI_API_KEY, sync: false }
+      - { key: PERPLEXITY_API_KEY, sync: false }
+      - { key: SENDGRID_API_KEY, sync: false }
+      - { key: WHATSAPP_CLOUD_TOKEN, sync: false }
+      - { key: WHATSAPP_PHONE_NUMBER_ID, sync: false }
+      - { key: WHATSAPP_VERIFY_TOKEN, sync: false }
+      - { key: HUNTER_API_KEY, sync: false }
+      - { key: APOLLO_API_KEY, sync: false }
+      - { key: GOOGLE_PLACES_API_KEY, sync: false }
+      - { key: STRIPE_SECRET_KEY, sync: false }
+      - { key: STRIPE_WEBHOOK_SECRET, sync: false }
+      - { key: GITHUB_TOKEN, sync: false }
+      - { key: TWILIO_ACCOUNT_SID, sync: false }
+      - { key: TWILIO_AUTH_TOKEN, sync: false }
+      - { key: DEFAULT_FROM_EMAIL, sync: false }
+
+  # ── Workers (background — the 24/7 autonomous engine) ──
+  - type: worker
+    name: leadhunter-workers
+    runtime: docker
+    dockerfilePath: ./infra/docker/workers.Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: leadhunter-db, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: redis, name: leadhunter-redis, property: connectionString }
+      - key: AI_SERVICE_URL
+        value: http://leadhunter-ai:8000
+      - { key: ANTHROPIC_API_KEY, sync: false }
+      - { key: OPENAI_API_KEY, sync: false }
+      - { key: GEMINI_API_KEY, sync: false }
+      - { key: PERPLEXITY_API_KEY, sync: false }
+      - { key: SENDGRID_API_KEY, sync: false }
+      - { key: GITHUB_TOKEN, sync: false }
+      - { key: ENCRYPTION_KEY, sync: false }
+      - { key: APP_URL, fromService: { type: web, name: leadhunter-web, property: url } }
+
+  # ── AI microservice (private — only reachable inside the network) ──
+  - type: pserv
+    name: leadhunter-ai
+    runtime: docker
+    dockerfilePath: ./services/ai/Dockerfile
+    dockerContext: ./services/ai
+    plan: starter
+    envVars:
+      - { key: ANTHROPIC_API_KEY, sync: false }
+      - { key: OPENAI_API_KEY, sync: false }
+      - { key: CLAUDE_MODEL, value: claude-sonnet-4-5 }
+
+  # ── Web (public Next.js dashboard) ──
+  - type: web
+    name: leadhunter-web
+    runtime: docker
+    dockerfilePath: ./infra/docker/web.Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService: { type: web, name: leadhunter-api, property: url }
+
+  # ── Voice bridge (public wss for Twilio) — only if using the receptionist ──
+  - type: web
+    name: leadhunter-voice
+    runtime: docker
+    dockerfilePath: ./services/voice/Dockerfile
+    dockerContext: .
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: leadhunter-db, property: connectionString }
+      - { key: OPENAI_API_KEY, sync: false }
+      - { key: TWILIO_ACCOUNT_SID, sync: false }
+      - { key: TWILIO_AUTH_TOKEN, sync: false }
+      - { key: ANTHROPIC_API_KEY, sync: false }
