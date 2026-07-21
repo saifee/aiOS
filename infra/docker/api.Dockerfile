@@ -9,4 +9,4 @@ RUN npm install
 COPY . .
 RUN npm -w packages/db run generate && npm -w apps/api run build
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss && node apps/api/dist/server.js"]
+CMD ["sh", "-c", "npm -w packages/db run migrate && node apps/api/dist/server.js"]

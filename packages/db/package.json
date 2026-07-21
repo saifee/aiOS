@@ -4,13 +4,18 @@
   "main": "index.ts",
   "scripts": {
     "generate": "prisma generate",
-    "migrate": "prisma migrate deploy",
-    "migrate:dev": "prisma migrate dev",
+    "migrate": "prisma db execute --url \"$DATABASE_URL\" --file prisma/pgvector.sql && prisma db push --skip-generate --accept-data-loss",
+    "migrate:dev": "prisma db execute --url \"$DATABASE_URL\" --file prisma/pgvector.sql && prisma db push",
     "seed": "tsx prisma/seed.ts",
     "build": "echo ok",
     "lint": "echo ok",
     "test": "echo ok"
   },
-  "dependencies": { "@prisma/client": "^5.16.0" },
-  "devDependencies": { "prisma": "^5.16.0", "tsx": "^4.16.0" }
+  "dependencies": {
+    "@prisma/client": "^5.16.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.16.0",
+    "tsx": "^4.16.0"
+  }
 }
