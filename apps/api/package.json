@@ -13,7 +13,6 @@
     "@fastify/jwt": "^8.0.0",
     "@fastify/multipart": "^8.3.0",
     "@fastify/rate-limit": "^9.0.0",
-    "@fastify/static": "^7.0.4",
     "@leadhunter/agents": "*",
     "@leadhunter/db": "*",
     "argon2": "^0.40.0",

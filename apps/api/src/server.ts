@@ -2,9 +2,8 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
-import fstatic from "@fastify/static";
-import { join, resolve, extname } from "path";
-import { existsSync } from "fs";
+import { join, resolve, extname, sep } from "path";
+import { existsSync, statSync, readFileSync } from "fs";
 import multipart from "@fastify/multipart";
 import rawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
@@ -63,16 +62,30 @@ async function main() {
   await app.register(studioRoutes, { prefix: "/v1" });
 
   // ── Serve the exported Next.js frontend from this same process (single-app deploy) ──
+  // Traversal-safe static serving (no @fastify/static dependency): every resolved
+  // path is checked to stay within the frontend directory before it's sent.
   const frontendDir = resolve(process.env.FRONTEND_DIR || join(process.cwd(), "apps/web/out"));
+  const MIME: Record<string, string> = {
+    ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript",
+    ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png",
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".ico": "image/x-icon",
+    ".webp": "image/webp", ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf",
+    ".txt": "text/plain", ".map": "application/json",
+  };
+  function safeFile(rel: string): string | null {
+    const full = resolve(frontendDir, rel.replace(/^\/+/, ""));
+    if (full !== frontendDir && !full.startsWith(frontendDir + sep)) return null; // block path traversal
+    return existsSync(full) && statSync(full).isFile() ? full : null;
+  }
   if (existsSync(frontendDir)) {
-    await app.register(fstatic, { root: frontendDir, wildcard: false });
-    // SPA-ish fallback: map /route → route.html → route/index.html → index.html
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith("/v1")) return reply.code(404).send({ error: "Not found" });
-      if (extname(req.url)) return reply.code(404).send("Not found");
-      const clean = req.url.split("?")[0].replace(/^\/+|\/+$/g, "");
-      for (const cand of [`${clean}.html`, `${clean}/index.html`, "index.html"]) {
-        if (existsSync(join(frontendDir, cand))) return reply.type("text/html").sendFile(cand);
+      const urlPath = decodeURIComponent(req.url.split("?")[0]);
+      const clean = urlPath.replace(/^\/+|\/+$/g, "");
+      const candidates = extname(urlPath) ? [clean] : [`${clean}.html`, `${clean}/index.html`, "index.html"];
+      for (const c of candidates) {
+        const full = safeFile(c);
+        if (full) return reply.type(MIME[extname(full)] || "application/octet-stream").send(readFileSync(full));
       }
       return reply.code(404).send("Not found");
     });
