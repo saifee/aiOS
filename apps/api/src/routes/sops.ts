@@ -31,12 +31,19 @@ export async function sopRoutes(app: FastifyInstance) {
       activity_log = logs.map((l) => ({ actor: l.actor, action: l.action, detail: l.detail, at: l.createdAt }));
     }
 
-    const res = await fetch(`${AI}/sop/generate`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ business: { name: business?.name, services: business?.services, description: business?.description }, description, activity_log, roles: DEPARTMENTS.map((d) => d.role) }),
-    });
-    if (!res.ok) throw new Error(`SOP generation failed: ${res.status}`);
-    const gen: any = await res.json();
+    let gen: any;
+    try {
+      const res = await fetch(`${AI}/sop/generate`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business: { name: business?.name, services: business?.services, description: business?.description }, description, activity_log, roles: DEPARTMENTS.map((d) => d.role) }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      gen = await res.json();
+    } catch {
+      // AI microservice not available (e.g. lite deploy) — save a manual draft instead.
+      return prisma.sop.create({ data: { businessId, title: description?.slice(0, 60) || "New SOP", description: description ?? "", trigger: "manual", steps: [], source: description ? "taught" : "observed", status: "draft" } });
+    }
     return prisma.sop.create({
       data: { businessId, title: gen.title, department: gen.department, description: gen.description, trigger: gen.trigger ?? "manual", steps: gen.steps ?? [], automation: gen.automation ?? undefined, source: gen.source ?? (description ? "taught" : "observed") },
     });

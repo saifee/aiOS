@@ -2,6 +2,9 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
+import fstatic from "@fastify/static";
+import { join, resolve, extname } from "path";
+import { existsSync } from "fs";
 import multipart from "@fastify/multipart";
 import rawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
@@ -58,6 +61,22 @@ async function main() {
   await app.register(billingRoutes, { prefix: "/v1" });
   await app.register(sopRoutes, { prefix: "/v1" });
   await app.register(studioRoutes, { prefix: "/v1" });
+
+  // ── Serve the exported Next.js frontend from this same process (single-app deploy) ──
+  const frontendDir = resolve(process.env.FRONTEND_DIR || join(process.cwd(), "apps/web/out"));
+  if (existsSync(frontendDir)) {
+    await app.register(fstatic, { root: frontendDir, wildcard: false });
+    // SPA-ish fallback: map /route → route.html → route/index.html → index.html
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith("/v1")) return reply.code(404).send({ error: "Not found" });
+      if (extname(req.url)) return reply.code(404).send("Not found");
+      const clean = req.url.split("?")[0].replace(/^\/+|\/+$/g, "");
+      for (const cand of [`${clean}.html`, `${clean}/index.html`, "index.html"]) {
+        if (existsSync(join(frontendDir, cand))) return reply.type("text/html").sendFile(cand);
+      }
+      return reply.code(404).send("Not found");
+    });
+  }
 
   const port = Number(process.env.PORT || 4000);
   await app.listen({ port, host: "0.0.0.0" });

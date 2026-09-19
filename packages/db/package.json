@@ -7,7 +7,7 @@
     "migrate": "prisma db execute --url \"$DATABASE_URL\" --file prisma/pgvector.sql && prisma db push --skip-generate --accept-data-loss",
     "migrate:dev": "prisma db execute --url \"$DATABASE_URL\" --file prisma/pgvector.sql && prisma db push",
     "seed": "tsx prisma/seed.ts",
-    "build": "echo ok",
+    "build": "prisma generate",
     "lint": "echo ok",
     "test": "echo ok"
   },

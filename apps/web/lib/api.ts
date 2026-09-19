@@ -1,4 +1,4 @@
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";  // same-origin in single-process deploy
 
 export function token() { return typeof window !== "undefined" ? localStorage.getItem("lh_token") : null; }
 
