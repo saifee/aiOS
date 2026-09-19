@@ -33,8 +33,8 @@ export default function Conversations() {
             </div>
             {reply?.id === c.id && (
               <div className="mt-3 flex gap-2">
-                <input className="input" placeholder="Your message…" value={reply.text} onChange={(e) => setReply({ ...reply, text: e.target.value })} />
-                <button className="btn" onClick={async () => { await api(`/conversations/${c.id}/reply`, { method: "POST", body: JSON.stringify({ body: reply.text }) }); setReply(null); mutate(); }}>Send</button>
+                <input className="input" placeholder="Your message…" value={reply?.text ?? ""} onChange={(e) => setReply({ id: c.id, text: e.target.value })} />
+                <button className="btn" onClick={async () => { await api(`/conversations/${c.id}/reply`, { method: "POST", body: JSON.stringify({ body: reply?.text ?? "" }) }); setReply(null); mutate(); }}>Send</button>
               </div>
             )}
           </div>
