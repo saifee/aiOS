@@ -1,6 +1,6 @@
 import { getQueue, INLINE } from "@leadhunter/agents";
 import type { Job } from "bullmq";
-import { prisma } from "@leadhunter/db";
+import { prisma, arr } from "@leadhunter/db";
 import { ai } from "@leadhunter/agents";
 import { sendEmail } from "@leadhunter/integrations";
 
@@ -29,7 +29,7 @@ export async function followupProcessor(job: Job) {
       business: { name: lead.business.name, services: lead.business.services, tone: lead.business.tone, calendarLink: lead.business.calendarLink },
       lead: { companyName: lead.companyName, contactName: contact.name, industry: lead.industry, painPoints: lead.painPoints },
       followUp: { attempt, previousSubject: lead.messages.find((m) => m.subject)?.subject },
-      language: lead.business.languages[0] ?? "en",
+      language: arr(lead.business.languages)[0] ?? "en",
     });
     const msg = await prisma.message.create({ data: { leadId, channel: "EMAIL", direction: "OUTBOUND", subject: gen.subject, body: gen.body_html, status: "QUEUED", meta: { followUp: attempt } } });
     try {
@@ -40,7 +40,7 @@ export async function followupProcessor(job: Job) {
     }
   }
 
-  const days = lead.campaign?.followUpDays ?? [3, 7, 14];
+  const days = arr<number>(lead.campaign?.followUpDays).length ? arr<number>(lead.campaign?.followUpDays) : [3, 7, 14];
   const nextDelay = (days[attempt] ?? days[days.length - 1]) * 86400_000;
   await followup.add("check", { leadId, attempt: attempt + 1 }, { delay: nextDelay, removeOnComplete: true });
 }
@@ -61,7 +61,7 @@ async function scanDue() {
     const outbound = lead.messages.filter((m) => m.direction === "OUTBOUND");
     if (!outbound.length) continue;
     const attempt = 1 + outbound.filter((m) => (m.meta as any)?.followUp).length; // next follow-up number
-    const days = lead.campaign?.followUpDays ?? [3, 7, 14];
+    const days = arr<number>(lead.campaign?.followUpDays).length ? arr<number>(lead.campaign?.followUpDays) : [3, 7, 14];
     const max = lead.campaign?.maxFollowUps ?? 3;
     if (attempt > max) continue;
     const waitDays = days[attempt - 1] ?? days[days.length - 1];

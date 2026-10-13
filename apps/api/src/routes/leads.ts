@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { prisma, Stage } from "@leadhunter/db";
+import { prisma, Stage, arr } from "@leadhunter/db";
 import { z } from "zod";
 import { queues } from "../lib/queues";
 
@@ -21,7 +21,7 @@ export async function leadRoutes(app: FastifyInstance) {
         businessId,
         ...(q.stage && { stage: q.stage }),
         ...(q.minScore && { leadScore: { gte: q.minScore } }),
-        ...(q.search && { companyName: { contains: q.search, mode: "insensitive" } }),
+        ...(q.search && { companyName: { contains: q.search } }),
       },
       include: { contacts: true, _count: { select: { messages: true } } },
       orderBy: { leadScore: "desc" },
@@ -63,7 +63,7 @@ export async function leadRoutes(app: FastifyInstance) {
     if (!lead) throw Object.assign(new Error("Not found"), { statusCode: 404 });
     await app.requireBusiness(req, lead.businessId);
     await prisma.lead.update({ where: { id }, data: { optedOut: true, stage: "ARCHIVED" } });
-    for (const email of lead.emails)
+    for (const email of arr(lead.emails))
       await prisma.suppression.upsert({ where: { scope_value: { scope: "email", value: email } }, update: {}, create: { scope: "email", value: email, reason: "opt_out" } });
     return { ok: true };
   });

@@ -4,8 +4,8 @@
   "main": "index.ts",
   "scripts": {
     "generate": "prisma generate",
-    "migrate": "prisma db execute --url \"$DATABASE_URL\" --file prisma/pgvector.sql && prisma db push --skip-generate",
-    "migrate:dev": "prisma db execute --url \"$DATABASE_URL\" --file prisma/pgvector.sql && prisma db push",
+    "migrate": "prisma db push --skip-generate",
+    "migrate:dev": "prisma db push",
     "seed": "tsx prisma/seed.ts",
     "build": "prisma generate",
     "lint": "echo ok",

@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { createHash } from "crypto";
+import { scryptSync, randomBytes } from "crypto";
+const hashPw = (pw: string) => { const salt = randomBytes(16); return `scrypt$16384$8$1$${salt.toString("base64")}$${scryptSync(pw, salt, 64, { N: 16384, r: 8, p: 1 }).toString("base64")}`; };
 const prisma = new PrismaClient();
 
 async function main() {
@@ -14,7 +15,7 @@ async function main() {
     create: {
       email: "owner@demo.test",
       name: "Demo Owner",
-      passwordHash: createHash("sha256").update("demo1234").digest("hex"),
+      passwordHash: hashPw("demo1234"),
       memberships: { create: { tenantId: tenant.id, role: "OWNER" } },
     },
   });

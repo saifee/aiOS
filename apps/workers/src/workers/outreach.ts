@@ -1,6 +1,6 @@
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
-import { prisma } from "@leadhunter/db";
+import { prisma, arr } from "@leadhunter/db";
 import { sendEmail, sendWhatsAppTemplate, sendWhatsAppText } from "@leadhunter/integrations";
 import { ai } from "@leadhunter/agents";
 import { consumeQuota } from "@leadhunter/agents";
@@ -48,7 +48,7 @@ export async function outreachProcessor(job: Job) {
   }
 
   const contact = lead.contacts[0];
-  const channels = lead.campaign?.channels ?? ["EMAIL"];
+  const channels = arr<string>(lead.campaign?.channels).length ? arr<string>(lead.campaign?.channels) : ["EMAIL"];
   const ctx = {
     business: { name: b.name, description: b.description, services: b.services, tone: b.tone, calendarLink: b.calendarLink },
     lead: {
@@ -58,7 +58,7 @@ export async function outreachProcessor(job: Job) {
       contactName: contact?.name, contactTitle: contact?.title,
       companySize: lead.employeeCount, techStack: lead.techStack,
     },
-    language: pickLanguage(b.languages, lead.country),
+    language: pickLanguage(arr(b.languages), lead.country),
   };
 
   // EMAIL
@@ -97,7 +97,7 @@ export async function outreachProcessor(job: Job) {
   await prisma.activity.create({ data: { leadId: lead.id, type: "email_sent", detail: { channels } } });
 
   // Schedule the first follow-up check
-  const days = lead.campaign?.followUpDays?.[0] ?? 3;
+  const days = arr<number>(lead.campaign?.followUpDays)[0] ?? 3;
   await followup.add("check", { leadId: lead.id, attempt: 1 }, { delay: days * 86400_000, removeOnComplete: true });
 }
 

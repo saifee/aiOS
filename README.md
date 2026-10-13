@@ -15,7 +15,7 @@ apps/web        Next.js 14 dashboard (pipeline kanban, campaigns, conversations,
 apps/api        Fastify REST API — auth, multi-tenant guard, CRM, webhooks (WhatsApp/SendGrid/inbound email/calendar)
 apps/workers    BullMQ autonomous engine — discovery → enrichment → qualification → outreach → follow-up → conversation → notify → learning
 services/ai     Python FastAPI microservice — Claude-powered scoring, message generation, reply agent
-packages/db     Prisma schema (Postgres) — tenants, businesses, campaigns, leads, contacts, messages, conversations, meetings, insights, suppression, audit
+packages/db     Prisma schema (MySQL/MariaDB) — tenants, businesses, campaigns, leads, contacts, messages, conversations, meetings, insights, suppression, audit
 packages/integrations  Provider clients — SendGrid/SES, WhatsApp Cloud API, Google Places/CSE/SerpAPI, Hunter, Apollo, Cal.com, Slack, Telegram
 infra           Docker Compose (dev), Dockerfiles, Kubernetes manifests
 ```
@@ -35,7 +35,7 @@ infra           Docker Compose (dev), Dockerfiles, Kubernetes manifests
 
 ```bash
 cp .env.example .env        # fill ANTHROPIC_API_KEY at minimum
-docker compose up -d postgres redis
+docker compose up -d db redis
 npm install
 npm -w packages/db run generate
 npm -w packages/db run migrate:dev
@@ -71,7 +71,7 @@ On top of the lead engine sits the agent kernel (`packages/agents`) that turns t
 - **Executive Command Center** — morning brief + natural-language command bar (CEO Assistant agent delegates across departments). `/command`
 - **AI Workforce** — 27 department agents (reception, sales, CS, PM, product, CTO, dev swarm, QA, DevOps, security, UI/UX, graphic, video, marketing, BD, growth, finance, HR, legal, procurement, knowledge, analytics, exec reporting), each with a system prompt + tools. `/workforce`
 - **AI Receptionist** — Twilio ↔ OpenAI Realtime voice bridge; answers calls in AR/EN, books meetings, logs to CRM. `/receptionist`
-- **Knowledge Brain** — pgvector RAG every agent can search ("what do we know about this client?").
+- **Knowledge Brain** — semantic-search Knowledge Brain (embeddings stored as JSON, cosine similarity in the app) every agent can search ("what do we know about this client?").
 - **Event-driven orchestration** — agents react to events and message each other.
 - **Human-in-the-loop** — sensitive actions (contracts, spend, refunds, deploys) require approval from the Command Center.
 - **Audit** — every agent action logged.
@@ -80,7 +80,6 @@ See `docs/agent-os.md` and `docs/receptionist.md`. Run the extra service with `d
 
 ### Before first run (Knowledge Brain)
 ```
-psql "$DATABASE_URL" -f packages/db/prisma/migrations/manual/000_pgvector.sql   # enable pgvector
-npm -w packages/db run migrate:dev
+npm -w packages/db run migrate:dev   # creates the tables (or run packages/db/prisma/schema.sql)
 npm -w packages/db run seed                                                     # registers all department agents
 ```

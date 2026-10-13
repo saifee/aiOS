@@ -1,6 +1,6 @@
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
-import { prisma } from "@leadhunter/db";
+import { prisma, arr } from "@leadhunter/db";
 import { findContactsByDomain, enrichCompany, fetchWebsiteText } from "@leadhunter/integrations";
 import { ingestKnowledge } from "@leadhunter/agents";
 
@@ -20,7 +20,7 @@ export async function enrichmentProcessor(job: Job) {
   if (domain) {
     confidence += 20;
     const [contacts, company, siteText] = await Promise.all([
-      findContactsByDomain(domain, lead.business.decisionMakerTitles).catch(() => []),
+      findContactsByDomain(domain, arr(lead.business.decisionMakerTitles)).catch(() => []),
       enrichCompany(domain).catch(() => ({} as any)),
       fetchWebsiteText(lead.website!).catch(() => ""),
     ]);
@@ -37,7 +37,7 @@ export async function enrichmentProcessor(job: Job) {
     await prisma.lead.update({
       where: { id: lead.id },
       data: {
-        emails: [...new Set([...lead.emails, ...emails])],
+        emails: [...new Set([...arr(lead.emails), ...emails])],
         employeeCount: company.employeeCount ?? lead.employeeCount,
         techStack: company.techStack ?? lead.techStack,
         industry: company.industry ?? lead.industry,

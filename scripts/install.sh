@@ -11,7 +11,7 @@ say "Kingslee AIOS installer"
 echo "Answer a few questions and I'll configure everything."
 
 DB_HOST=$(ask "Database host" "localhost")
-DB_PORT=$(ask "Database port" "5432")
+DB_PORT=$(ask "Database port" "3306")
 DB_USER=$(ask "Database user" "leadhunter")
 DB_PASS=$(asksecret "Database password")
 DB_NAME=$(ask "Database name" "leadhunter")
@@ -20,7 +20,7 @@ say "AI keys (Anthropic is required; the rest are optional — press Enter to sk
 ANTHROPIC=$(asksecret "ANTHROPIC_API_KEY")
 OPENAI=$(asksecret "OPENAI_API_KEY (optional)")
 
-DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+DATABASE_URL="mysql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 JWT_SECRET=$(openssl rand -hex 32)
 ENC_KEY=$(openssl rand -hex 32)
 
@@ -41,17 +41,17 @@ DEFAULT_FROM_EMAIL=hello@localhost
 ENV
 echo ".env written."
 
-say "Optional: start Postgres + Redis with Docker?"
-read -rp "Start local Postgres+Redis containers now? (y/N): " startdb
+say "Optional: start MariaDB + Redis with Docker?"
+read -rp "Start local MariaDB+Redis containers now? (y/N): " startdb
 if [[ "$startdb" =~ ^[Yy] ]]; then
-  docker run -d --name kingslee-pg -e POSTGRES_USER="$DB_USER" -e POSTGRES_PASSWORD="$DB_PASS" -e POSTGRES_DB="$DB_NAME" -p "${DB_PORT}:5432" pgvector/pgvector:pg16 || true
+  docker run -d --name kingslee-db -e MARIADB_USER="$DB_USER" -e MARIADB_PASSWORD="$DB_PASS" -e MARIADB_ROOT_PASSWORD="$DB_PASS" -e MARIADB_DATABASE="$DB_NAME" -p "${DB_PORT}:3306" mariadb:10.11 || true
   docker run -d --name kingslee-redis -p 6379:6379 redis:7-alpine || true
-  echo "Waiting for Postgres…"; sleep 6
+  echo "Waiting for MariaDB…"; sleep 6
 fi
 
 say "Installing dependencies"; npm install
 say "Generating database client"; npm -w packages/db run generate
-say "Creating database schema (+ pgvector extension)"; npm -w packages/db run migrate
+say "Creating database schema "; npm -w packages/db run migrate
 say "Seeding starter data + AI departments"; npm -w packages/db run seed || true
 
 say "Done ✓"

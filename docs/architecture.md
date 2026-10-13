@@ -7,7 +7,7 @@
 | api | Fastify + Prisma | REST API, auth (JWT), tenant isolation, webhooks |
 | workers | BullMQ | The autonomous agent: 8 queues + 3 cron loops |
 | ai | FastAPI + Claude | Scoring, generation, conversation intelligence |
-| postgres | 16 | System of record |
+| MySQL / MariaDB | 8 / 10.11 | System of record |
 | redis | 7 | Queues, rate limits |
 | elasticsearch | 8 | (optional) lead search at scale |
 | minio/S3 | — | Attachments, exports |

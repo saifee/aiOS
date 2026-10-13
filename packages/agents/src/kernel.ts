@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { prisma } from "@leadhunter/db";
+import { prisma, arr } from "@leadhunter/db";
 import { TOOLS, toolSpecs, ToolCtx } from "./tools";
 import { AGENT_REGISTRY } from "./registry";
 import { searchKnowledge, remember } from "./memory";
@@ -36,8 +36,8 @@ export async function runAgent(params: { businessId: string; role: string; input
 
 ## Company context
 ${business?.name} — ${business?.description ?? ""}
-Services: ${(business?.services ?? []).join(", ")}
-Languages: ${(business?.languages ?? ["en"]).join(", ")} (reply in the language the task/customer uses)
+Services: ${arr(business?.services).join(", ")}
+Languages: ${(arr(business?.languages).length ? arr(business?.languages) : ["en"]).join(", ")} (reply in the language the task/customer uses)
 Tone: ${business?.tone ?? "professional"}
 
 ## Relevant knowledge

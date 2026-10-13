@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
-import argon2 from "argon2";
+import argon2 from "../lib/password";
 import { z } from "zod";
 import { AGENT_REGISTRY } from "@leadhunter/agents";
 
@@ -9,8 +9,8 @@ import { AGENT_REGISTRY } from "@leadhunter/agents";
  * Once any user exists the app is "configured" and these endpoints refuse to
  * run again — so it's safe to leave enabled. It performs the app-level setup
  * that used to require the Render Shell: connection check, admin + company
- * creation, demo business, and agent registration. Table creation + pgvector
- * happen on boot (the container runs `db push` first).
+ * creation, demo business, and agent registration. Table creation
+ * happens on boot (AUTO_MIGRATE / `db push`).
  */
 export async function setupRoutes(app: FastifyInstance) {
   app.get("/setup/status", async () => {

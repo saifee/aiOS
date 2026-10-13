@@ -1,5 +1,5 @@
-import { Queue, Job } from "bullmq";
-import IORedis from "ioredis";
+import type { Queue, Job } from "bullmq";
+import type IORedis from "ioredis";
 
 /**
  * Job queue with two interchangeable backends:
@@ -21,7 +21,9 @@ export function hasProcessor(queue: string) { return processors.has(queue); }
 let _conn: IORedis | null = null;
 export function redis(): IORedis {
   if (INLINE) throw new Error("Redis is not available in inline mode");
-  return (_conn ??= new IORedis(process.env.REDIS_URL!, { maxRetriesPerRequest: null }));
+  // Loaded lazily so a Redis-free deployment (Hostinger) does not need these packages installed.
+  const Redis = require("ioredis") as typeof import("ioredis").default;
+  return (_conn ??= new Redis(process.env.REDIS_URL!, { maxRetriesPerRequest: null }));
 }
 
 async function runInline(queue: string, name: string, data: any) {
@@ -55,7 +57,7 @@ export function getQueue(name: string): Queue {
           return null;
         },
       } as unknown as Queue)
-    : new Queue(name, { connection: redis() });
+    : new (require("bullmq").Queue as typeof import("bullmq").Queue)(name, { connection: redis() });
   cache.set(name, q);
   return q;
 }

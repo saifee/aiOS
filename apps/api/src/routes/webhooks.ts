@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { prisma } from "@leadhunter/db";
+import { prisma, arr, findLeadByListValue } from "@leadhunter/db";
 import { queues } from "../lib/queues";
 import { verifyWebhook, PLANS } from "@leadhunter/integrations";
 
@@ -61,7 +61,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     const bodyText = body.text ?? body.plain ?? stripHtml(body.html) ?? "";
     const email = String(from).match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0]?.toLowerCase();
     if (!email) return reply.send({ ok: true });
-    const lead = await prisma.lead.findFirst({ where: { emails: { has: email } } });
+    const lead = await findLeadByListValue("emails", email);
     if (lead) await handleInbound(lead.id, "EMAIL", String(bodyText));
     return reply.send({ ok: true });
   });
@@ -113,7 +113,7 @@ async function handleInbound(leadId: string, channel: "EMAIL" | "WHATSAPP", text
 
   if (OPT_OUT.test(text)) {
     const lead = await prisma.lead.update({ where: { id: leadId }, data: { optedOut: true, stage: "ARCHIVED" } });
-    for (const e of lead.emails)
+    for (const e of arr(lead.emails))
       await prisma.suppression.upsert({ where: { scope_value: { scope: "email", value: e } }, update: {}, create: { scope: "email", value: e, reason: "opt_out" } });
     if (lead.whatsapp)
       await prisma.suppression.upsert({ where: { scope_value: { scope: "phone", value: lead.whatsapp } }, update: {}, create: { scope: "phone", value: lead.whatsapp, reason: "opt_out" } });

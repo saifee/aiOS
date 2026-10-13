@@ -21,7 +21,7 @@ export const TOOLS: Record<string, Tool> = {
     description: "Search leads/companies in the CRM by name, stage, or minimum score.",
     schema: z.object({ query: z.string().optional(), stage: z.string().optional(), minScore: z.number().optional(), take: z.number().max(50).default(20) }),
     handler: async (i, ctx) => prisma.lead.findMany({
-      where: { businessId: ctx.businessId, ...(i.query && { companyName: { contains: i.query, mode: "insensitive" } }), ...(i.stage && { stage: i.stage }), ...(i.minScore && { leadScore: { gte: i.minScore } }) },
+      where: { businessId: ctx.businessId, ...(i.query && { companyName: { contains: i.query } }), ...(i.stage && { stage: i.stage }), ...(i.minScore && { leadScore: { gte: i.minScore } }) },
       include: { contacts: true }, take: i.take, orderBy: { leadScore: "desc" },
     }),
   },

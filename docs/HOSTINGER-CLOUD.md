@@ -1,41 +1,49 @@
-# Kingslee AIOS on Hostinger Cloud (Professional)
+# Kingslee AIOS on Hostinger Cloud — MySQL, no `npm install`
 
-## How it runs here
-One Node.js app = API + web UI + background workers (no Redis, no Python, no Docker).
-Database = Supabase Postgres (pgvector). Recurring jobs (follow-ups, lead discovery, morning brief)
-are driven by ONE Hostinger cron job that calls `/v1/cron/tick`.
+Runs as ONE Node.js app: API + web UI + background workers. Database = Hostinger's own MySQL/MariaDB.
+No Redis, no Python, no Docker, nothing to install or build on the host.
 
-Not available on Hostinger: the live phone-call bridge (`services/voice`) needs a long-lived WebSocket
-server. Run it later on a small separate host and point Twilio to it. Everything else works.
+## 1. Get the ready-to-upload package
+You need `kingslee-aios-hostinger.zip` (one-time build, ~80 MB because it carries the database engine
+for every Linux flavour Hostinger might use):
 
-## Before you start (Supabase)
-1. Supabase → Database → Extensions → enable **vector**.
-2. Supabase → Connect → **Session pooler** → copy the string (host looks like `aws-0-xx.pooler.supabase.com`).
-   Do not use the `db.<ref>.supabase.co` direct host – it is IPv6-only and fails from Hostinger.
-3. Rotate the secret key you pasted in chat earlier.
+- **GitHub:** push this repo → Actions → *Build Hostinger package* → Run workflow → download the artifact.
+- **or your PC / any Linux box with Node 20:** `./scripts/package-hostinger.sh`
 
-## Deploy
-1. hPanel → Websites → Add website / your subdomain → **Node.js** (Node 22).
-2. Import the GitHub repo `saifee/aiOS` (or upload the zip), branch `main`.
-3. Settings:
-   - Install + build command: `npm install && npm -w packages/db run generate && npm -w apps/web run build && npm -w apps/api run build`
-   - Entry file: `app.js`
-   - Framework: Other / Express
-4. Environment variables: paste everything from `.env.hostinger` (filled in).
-5. Deploy. First start creates the tables automatically (AUTO_MIGRATE).
-6. Open `https://ai.kingslee.net/health` → `{"ok":true}`, then `/setup` to create the admin account.
+## 2. Create the database (hPanel → Databases → Management)
+Create a database + user. Note the three names (look like `u123456789_aios`). Host is `localhost`.
+`DATABASE_URL=mysql://USER:PASSWORD@localhost:3306/DBNAME`
 
-## Turn on the background workers (one cron job)
-hPanel → Advanced → **Cron Jobs** → every 5 minutes:
+## 3. Create the Node.js app (hPanel → Websites → ai.saifullahkhalid.com → Node.js)
+- Node version 20 or 22
+- Upload `kingslee-aios-hostinger.zip` (File Manager → upload → extract into the app folder, or the upload option in the Node.js screen)
+- Entry file: `app.js`      Build command: *(leave empty)*      Install: *(skip / none)*
+- Environment variables: everything in `.env.hostinger`, filled in
+- Start / Restart
 
-    curl -fsS "https://ai.kingslee.net/v1/cron/tick?key=YOUR_CRON_SECRET" > /dev/null
+## 4. First start
+Open `https://ai.saifullahkhalid.com/health` → `{"ok":true}`.
+With `AUTO_MIGRATE=true` the 37 tables are created automatically on the first start.
+Prefer to do it by hand? phpMyAdmin → select the database → Import → `packages/db/prisma/schema.sql`.
+Then open `/setup` and create your admin account.
 
-The endpoint only starts jobs that are actually due (follow-ups every 30 min, discovery every 6 h,
-learning/growth scan/morning brief daily, social publishing every 5 min).
+## 5. Turn on the background workers (one cron job)
+hPanel → Advanced → Cron Jobs → every 5 minutes:
+
+    curl -fsS "https://ai.saifullahkhalid.com/v1/cron/tick?key=YOUR_CRON_SECRET" > /dev/null
+
+Only jobs that are due actually start (follow-ups 30 min, discovery 6 h, learning/growth scan/morning brief daily).
+
+## Notes & limits
+- Knowledge Brain search: embeddings are stored as JSON and compared inside the app (fine for thousands of
+  chunks; move to a vector database later if it grows past that). Needs `OPENAI_API_KEY` for embeddings.
+- Live phone-call receptionist (`services/voice`) needs a long-running WebSocket server – host it elsewhere later.
+- Changing the data model later: edit `schema.prisma`, run `npm run db:sql`, and apply the new columns
+  (locally `npm -w packages/db run migrate` against the database, or ALTER TABLE in phpMyAdmin).
+  `schema.sql` only creates missing tables; it never alters existing ones.
 
 ## Troubleshooting
-- **403 / "Forbidden"** : the app did not start. hPanel → Node.js → *Logs*. Usual causes: missing env var,
-  wrong entry file (must be `app.js`), build failed.
-- **Prisma "P1001 can't reach database"** : you used the direct host; switch to the Session pooler string.
-- **Tables missing** : set `AUTO_MIGRATE=true` and restart, or over SSH: `npm -w packages/db run migrate`.
-- **Follow-ups never send** : the cron job is missing or `CRON_SECRET` differs.
+- **403 / blank page** – the app did not start. hPanel → Node.js → Logs. Usual causes: wrong entry file, missing env var.
+- **Prisma "unable to load engine"** – send me the log line; the package carries engines for RHEL/Debian × OpenSSL 1.0/1.1/3.
+- **"Access denied for user"** – wrong DATABASE_URL user/password (URL-encode special characters).
+- **Follow-ups never send** – cron job missing or `CRON_SECRET` mismatch.

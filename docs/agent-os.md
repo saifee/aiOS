@@ -8,7 +8,7 @@ The platform is not a bag of features; it's a kernel with pluggable AI employees
 | `kernel.ts` | Runs any agent: loads its role, grounds it in the Knowledge Brain, runs a Claude tool-use loop, logs the run, writes memory. |
 | `registry.ts` | The org chart — every department's system prompt + allowed tools. Add a department = add an entry. |
 | `tools.ts` | The agents' hands: CRM, knowledge search, email/WhatsApp, meetings, tasks, proposals, invoices, inter-agent messaging, events, and the human-approval gate. |
-| `memory.ts` | Shared memory + Knowledge Brain (pgvector cosine search). |
+| `memory.ts` | Shared memory + Knowledge Brain (embeddings stored as JSON; cosine search computed in the app). |
 | `bus.ts` | Event-driven backbone: `publishEvent`, `dispatchAgent`, `sendAgentMessage` over BullMQ. |
 | `orchestrator.ts` | Routes domain events to the departments that should react; delivers inter-agent messages. |
 

@@ -9,7 +9,7 @@
 - Build & push images (CI job included): api, workers, ai, web.
 - `kubectl create secret generic leadhunter-env --from-env-file=.env`
 - `kubectl apply -f infra/k8s/deployment.yaml`
-- Use managed Postgres (RDS/Cloud SQL) + Redis (Elasticache/Memorystore).
+- Use managed MySQL (RDS/Cloud SQL) + Redis (Elasticache/Memorystore).
 
 ## Provider setup checklist
 - SendGrid: API key, Event Webhook → /v1/webhooks/sendgrid/events, Inbound Parse → /v1/webhooks/email/inbound, domain authentication (SPF/DKIM/DMARC).

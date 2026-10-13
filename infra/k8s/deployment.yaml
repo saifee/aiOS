@@ -1,4 +1,4 @@
-# Minimal production deployment (API + workers + AI + web). Postgres/Redis via managed services.
+# Minimal production deployment (API + workers + AI + web). MySQL/Redis via managed services.
 apiVersion: apps/v1
 kind: Deployment
 metadata: { name: leadhunter-api }

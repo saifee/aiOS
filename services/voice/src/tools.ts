@@ -1,4 +1,4 @@
-import { prisma } from "@leadhunter/db";
+import { prisma, findLeadByListValue } from "@leadhunter/db";
 import { sendWhatsAppText, redirectCallToHuman } from "@leadhunter/integrations";
 
 /** Function tools the receptionist can call mid-call (OpenAI Realtime format). */
@@ -13,7 +13,8 @@ export const receptionistTools = [
 export async function runReceptionistTool(name: string, args: any, ctx: { businessId: string; callSid: string; fromNumber: string }) {
   switch (name) {
     case "lookup_client": {
-      const lead = await prisma.lead.findFirst({ where: { businessId: ctx.businessId, OR: [{ companyName: { contains: args.query, mode: "insensitive" } }, { phones: { has: ctx.fromNumber } }] }, include: { contacts: true } });
+      const byPhone = await findLeadByListValue("phones", ctx.fromNumber, { businessId: ctx.businessId });
+      const lead = await prisma.lead.findFirst({ where: { businessId: ctx.businessId, OR: [{ companyName: { contains: args.query } }, ...(byPhone ? [{ id: byPhone.id }] : [])] }, include: { contacts: true } });
       return lead ? { found: true, company: lead.companyName, stage: lead.stage, contact: lead.contacts[0]?.name } : { found: false };
     }
     case "create_lead": {

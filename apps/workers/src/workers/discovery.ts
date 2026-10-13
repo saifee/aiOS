@@ -1,7 +1,7 @@
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
 import { createHash } from "crypto";
-import { prisma } from "@leadhunter/db";
+import { prisma, arr } from "@leadhunter/db";
 import { discoverViaPlaces, discoverViaSearch, buildQueries, RawLead } from "@leadhunter/integrations";
 import { consumeQuota } from "@leadhunter/agents";
 
@@ -20,14 +20,14 @@ export async function discoveryProcessor(job: Job) {
     const b = campaign.business;
     const found: RawLead[] = [];
 
-    for (const source of campaign.sources) {
+    for (const source of arr<string>(campaign.sources)) {
       try {
         if (source === "places") {
-          for (const kw of b.keywords.slice(0, 5))
-            for (const city of b.targetCities.slice(0, 6))
+          for (const kw of arr(b.keywords).slice(0, 5))
+            for (const city of arr(b.targetCities).slice(0, 6))
               found.push(...await discoverViaPlaces(kw, city));
         } else {
-          for (const q of buildQueries(b, source).slice(0, 12))
+          for (const q of buildQueries({ keywords: arr(b.keywords), targetCities: arr(b.targetCities), targetCountries: arr(b.targetCountries), industriesServed: arr(b.industriesServed) }, source).slice(0, 12))
             found.push(...await discoverViaSearch(q.query, { city: q.city, country: q.country, source }));
         }
       } catch (e) { console.error(`discovery source=${source} campaign=${campaign.id}`, e); }
@@ -35,7 +35,7 @@ export async function discoveryProcessor(job: Job) {
 
     let inserted = 0;
     for (const raw of found) {
-      if (b.negativeKeywords.some((n) => raw.companyName.toLowerCase().includes(n.toLowerCase()))) continue;
+      if (arr(b.negativeKeywords).some((n) => raw.companyName.toLowerCase().includes(n.toLowerCase()))) continue;
       const dedupeKey = raw.website
         ? new URL(raw.website).hostname.replace(/^www\./, "")
         : createHash("sha1").update(`${raw.companyName.toLowerCase()}|${raw.city ?? ""}`).digest("hex");

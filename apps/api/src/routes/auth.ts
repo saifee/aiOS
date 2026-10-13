@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
-import argon2 from "argon2";
+import argon2 from "../lib/password";
 import { z } from "zod";
 
 export async function authRoutes(app: FastifyInstance) {

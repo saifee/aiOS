@@ -6,9 +6,8 @@ info(){ printf "\n\033[1;36m▶ %s\033[0m\n" "$1"; }
 ok(){ printf "\033[1;32m✓ %s\033[0m\n" "$1"; }
 
 info "1/8 Install dependencies";           npm install
-info "2/8 Start Postgres + Redis";          docker compose up -d postgres redis
-info "3/8 Enable pgvector";                 sleep 4; docker compose exec -T postgres psql -U leadhunter -d leadhunter -f - < packages/db/prisma/migrations/manual/000_pgvector.sql || \
-  docker compose exec -T postgres psql -U leadhunter -d leadhunter -c "CREATE EXTENSION IF NOT EXISTS vector;"
+info "2/8 Start MariaDB + Redis";          docker compose up -d db redis
+info "3/8 Wait for database";                sleep 8
 info "4/8 Generate Prisma client";          npm -w packages/db run generate
 info "5/8 Run migrations";                  npm -w packages/db run migrate:dev
 info "6/8 Seed demo tenant + 27 agents";    npm -w packages/db run seed

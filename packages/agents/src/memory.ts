@@ -9,39 +9,38 @@ import { embed } from "@leadhunter/integrations";
  */
 export async function remember(businessId: string, content: string, opts: { agentId?: string; kind?: string } = {}) {
   const vec = await embed(content).catch(() => null);
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO "Memory" (id, "businessId", "agentId", kind, content, embedding, "createdAt")
-     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, ${vec ? `$5::vector` : "NULL"}, now())`,
-    businessId, opts.agentId ?? null, opts.kind ?? "episodic", content, ...(vec ? [toVec(vec)] : [])
-  );
+  await prisma.memory.create({ data: { businessId, agentId: opts.agentId ?? null, kind: opts.kind ?? "episodic", content, embedding: vec ?? undefined } });
 }
 
 export async function ingestKnowledge(businessId: string, source: string, content: string, meta: { sourceId?: string; title?: string; metadata?: unknown } = {}) {
   if (!content?.trim()) return;
   const vec = await embed(content.slice(0, 8000)).catch(() => null);
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO "KnowledgeChunk" (id, "businessId", source, "sourceId", title, content, metadata, embedding, "createdAt")
-     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, ${vec ? `$7::vector` : "NULL"}, now())`,
-    businessId, source, meta.sourceId ?? null, meta.title ?? null, content.slice(0, 8000),
-    JSON.stringify(meta.metadata ?? {}), ...(vec ? [toVec(vec)] : [])
-  );
+  await prisma.knowledgeChunk.create({
+    data: { businessId, source, sourceId: meta.sourceId ?? null, title: meta.title ?? null, content: content.slice(0, 8000), metadata: (meta.metadata ?? {}) as any, embedding: vec ?? undefined },
+  });
 }
 
-/** Cosine-similarity semantic search over the Knowledge Brain. */
+function cosine(a: number[], b: number[]) {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length && i < b.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
+}
+
+/**
+ * Semantic search over the Knowledge Brain. MySQL has no vector type, so embeddings are stored as
+ * JSON and cosine similarity is computed here over the business's most recent chunks (fine up to a
+ * few thousand chunks; move to a vector DB when it outgrows that).
+ */
 export async function searchKnowledge(businessId: string, query: string, limit = 6): Promise<{ title: string; content: string; source: string; score: number }[]> {
   const vec = await embed(query).catch(() => null);
   if (!vec) {
-    const rows = await prisma.knowledgeChunk.findMany({ where: { businessId, content: { contains: query, mode: "insensitive" } }, take: limit });
+    const rows = await prisma.knowledgeChunk.findMany({ where: { businessId, content: { contains: query } }, take: limit });
     return rows.map((r) => ({ title: r.title ?? "", content: r.content, source: r.source, score: 0 }));
   }
-  return prisma.$queryRawUnsafe(
-    `SELECT title, content, source, 1 - (embedding <=> $2::vector) AS score
-     FROM "KnowledgeChunk"
-     WHERE "businessId" = $1 AND embedding IS NOT NULL
-     ORDER BY embedding <=> $2::vector ASC
-     LIMIT $3`,
-    businessId, toVec(vec), limit
-  ) as any;
+  const rows = await prisma.knowledgeChunk.findMany({ where: { businessId }, orderBy: { createdAt: "desc" }, take: 3000 });
+  return rows
+    .filter((r) => Array.isArray(r.embedding))
+    .map((r) => ({ title: r.title ?? "", content: r.content, source: r.source, score: cosine(vec, r.embedding as number[]) }))
+    .sort((x, y) => y.score - x.score)
+    .slice(0, limit);
 }
-
-function toVec(arr: number[]) { return `[${arr.join(",")}]`; }

@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { prisma } from "@leadhunter/db";
+import { prisma, findLeadByListValue } from "@leadhunter/db";
 import { consumeQuota } from "@leadhunter/agents";
 
 /**
@@ -17,7 +17,7 @@ export async function voiceRoutes(app: FastifyInstance) {
     const businessId = (req.query as any).businessId as string; // number → business mapping via query on the webhook URL
     const from = b.From, to = b.To, callSid = b.CallSid;
 
-    const lead = businessId ? await prisma.lead.findFirst({ where: { businessId, OR: [{ phones: { has: from } }, { whatsapp: from }] } }) : null;
+    const lead = businessId ? ((await findLeadByListValue("phones", from, { businessId })) ?? (await prisma.lead.findFirst({ where: { businessId, whatsapp: from } }))) : null;
     await prisma.call.create({ data: { businessId: businessId ?? "unknown", leadId: lead?.id, fromNumber: from, toNumber: to, callSid, status: "in_progress" } }).catch(() => {});
 
     if (businessId) {

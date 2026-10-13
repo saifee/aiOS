@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -63,23 +63,23 @@ model Business {
   id                  String        @id @default(cuid())
   tenantId            String
   name                String
-  description         String?
-  services            String[]
-  industriesServed    String[]
-  targetCountries     String[]
-  targetCities        String[]
-  keywords            String[]
-  negativeKeywords    String[]
+  description         String? @db.Text
+  services            Json? @default("[]")
+  industriesServed    Json? @default("[]")
+  targetCountries     Json? @default("[]")
+  targetCities        Json? @default("[]")
+  keywords            Json? @default("[]")
+  negativeKeywords    Json? @default("[]")
   idealCompanySizeMin Int?
   idealCompanySizeMax Int?
-  decisionMakerTitles String[]
+  decisionMakerTitles Json? @default("[]")
   maxOutreachPerDay   Int           @default(50)
   workingHoursStart   String        @default("09:00")
   workingHoursEnd     String        @default("18:00")
   timezone            String        @default("Asia/Riyadh")
-  languages           String[]      @default(["en"])
+  languages           Json? @default("[\"en\"]")
   tone                String        @default("professional")
-  calendarLink        String?
+  calendarLink        String? @db.Text
   minLeadScore        Int           @default(60)
   branding            Json?
   notificationPrefs   Json?
@@ -111,7 +111,7 @@ model Template {
   channel    Channel
   name       String
   subject    String?
-  body       String
+  body       String @db.Text
   language   String   @default("en")
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
@@ -123,9 +123,9 @@ model Campaign {
   businessId   String
   name         String
   status       CampaignStatus @default(ACTIVE)
-  channels     Channel[]
-  sources      String[]
-  followUpDays Int[]          @default([3, 7, 14])
+  channels     Json? @default("[]")
+  sources      Json? @default("[]")
+  followUpDays Json? @default("[3,7,14]")
   maxFollowUps Int            @default(3)
   createdAt    DateTime       @default(now())
   business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -154,30 +154,30 @@ model Lead {
   businessId      String
   campaignId      String?
   companyName     String
-  website         String?
+  website         String? @db.Text
   industry        String?
   country         String?
   city            String?
-  address         String?
-  phones          String[]
-  emails          String[]
+  address         String? @db.Text
+  phones          Json? @default("[]")
+  emails          Json? @default("[]")
   whatsapp        String?
-  linkedin        String?
-  facebook        String?
-  instagram       String?
+  linkedin        String? @db.Text
+  facebook        String? @db.Text
+  instagram       String? @db.Text
   employeeCount   Int?
   companySize     String?
-  techStack       String[]
+  techStack       Json? @default("[]")
   growthSignals   Json?
-  painPoints      String[]
+  painPoints      Json? @default("[]")
   latestNews      Json?
-  potentialNeed   String?
+  potentialNeed   String? @db.Text
   estimatedBudget String?
   confidenceScore Int            @default(0)
   leadScore       Int            @default(0)
   scoreBreakdown  Json?
   stage           Stage          @default(FOUND)
-  sourceUrl       String?
+  sourceUrl       String? @db.Text
   source          String?
   dedupeKey       String?
   optedOut        Boolean        @default(false)
@@ -218,9 +218,9 @@ model Contact {
   email     String?
   phone     String?
   whatsapp  String?
-  linkedin  String?
+  linkedin  String? @db.Text
   isPrimary Boolean @default(false)
-  sourceUrl String?
+  sourceUrl String? @db.Text
   verified  Boolean @default(false)
   lead      Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
   @@index([leadId])
@@ -245,7 +245,7 @@ model Message {
   channel     Channel
   direction   Direction
   subject     String?
-  body        String
+  body        String @db.Text
   status      MsgStatus @default(QUEUED)
   providerId  String?
   openedAt    DateTime?
@@ -281,8 +281,8 @@ model Conversation {
   channel       Channel
   state         ConvState @default(AI_HANDLING)
   intent        String?
-  summary       String?
-  handoffReason String?
+  summary       String? @db.Text
+  handoffReason String? @db.Text
   updatedAt     DateTime  @updatedAt
   createdAt     DateTime  @default(now())
   lead          Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -300,7 +300,7 @@ model Meeting {
   provider String
   startsAt DateTime
   endsAt   DateTime
-  joinUrl  String?
+  joinUrl  String? @db.Text
   status   String   @default("scheduled")
   lead     Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 }
@@ -311,9 +311,9 @@ model Notification {
   id        String    @id @default(cuid())
   userId    String
   title     String
-  body      String
+  body      String @db.Text
   kind      String
-  channels  String[]
+  channels  Json? @default("[]")
   readAt    DateTime?
   meta      Json?
   createdAt DateTime  @default(now())
@@ -381,7 +381,7 @@ model AgentRun {
   status     String    @default("running") // running | done | failed | awaiting_approval
   tokensIn   Int       @default(0)
   tokensOut  Int       @default(0)
-  error      String?
+  error      String? @db.Text
   startedAt  DateTime  @default(now())
   endedAt    DateTime?
   agent      Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -395,7 +395,7 @@ model AgentMessage {
   fromRole    String
   toRole      String
   subject     String?
-  body        String
+  body        String @db.Text
   payload     Json?
   handled     Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -412,15 +412,15 @@ model Event {
   @@index([businessId, type, createdAt])
 }
 
-// Agent memory + Knowledge Brain chunks. `embedding` is a pgvector column
+// Agent memory + Knowledge Brain chunks. `embedding` is a JSON array of floats (cosine similarity is computed in the app)
 // (added via migration SQL). Similarity search runs through raw SQL.
 model Memory {
   id         String                 @id @default(cuid())
   businessId String
   agentId    String?
   kind       String                 // fact | preference | episodic | summary
-  content    String
-  embedding  Unsupported("vector(1536)")?
+  content    String @db.Text
+  embedding  Json?
   createdAt  DateTime               @default(now())
   agent      Agent?                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
   @@index([businessId, kind])
@@ -432,9 +432,9 @@ model KnowledgeChunk {
   source     String                 // lead | message | call | doc | invoice | project | contract | email
   sourceId   String?
   title      String?
-  content    String
+  content    String @db.Text
   metadata   Json?
-  embedding  Unsupported("vector(1536)")?
+  embedding  Json?
   createdAt  DateTime               @default(now())
   @@index([businessId, source])
 }
@@ -445,7 +445,7 @@ model Approval {
   businessId  String
   agentRole   String
   action      String    // send_contract | issue_refund | send_proposal | deploy | large_spend ...
-  summary     String
+  summary     String @db.Text
   payload     Json
   status      String    @default("pending") // pending | approved | rejected
   decidedBy   String?
@@ -495,7 +495,7 @@ model Proposal {
   amount      Float?
   currency    String   @default("SAR")
   status      String   @default("draft") // draft | sent | accepted | rejected
-  contentHtml String?
+  contentHtml String? @db.Text
   createdAt   DateTime @default(now())
   @@index([businessId, status])
 }
@@ -527,9 +527,9 @@ model Call {
   callSid     String?   @unique
   status      String    @default("in_progress") // in_progress | completed | missed | transferred
   language    String?
-  recordingUrl String?
+  recordingUrl String? @db.Text
   transcript  Json?     // [{ role, text, ts }]
-  summary     String?
+  summary     String? @db.Text
   sentiment   String?
   intent      String?
   durationSec Int?
@@ -571,7 +571,7 @@ model Sop {
   businessId  String
   title       String
   department  String?
-  description String?
+  description String? @db.Text
   trigger     String?   // manual | event:<type> | schedule:<cron>
   steps       Json      // [{ n, action, tool?, owner? }]
   status      String    @default("draft") // draft | active | archived
@@ -603,7 +603,7 @@ model Expense {
   currency   String   @default("SAR")
   recurring  Boolean  @default(false)
   incurredAt DateTime @default(now())
-  note       String?
+  note       String? @db.Text
   createdAt  DateTime @default(now())
   @@index([businessId, incurredAt])
 }
@@ -616,14 +616,14 @@ model Expense {
 model SwarmRun {
   id          String    @id @default(cuid())
   businessId  String
-  task        String
+  task        String @db.Text
   repo        String?   // owner/name for GitHub PR
   status      String    @default("running") // running | review | testing | awaiting_approval | done | failed
   stages      Json?     // [{ role, model, output, at }]
   changeset   Json?     // [{ path, content }]
-  testOutput  String?
+  testOutput  String? @db.Text
   testsPassed Boolean?
-  prUrl       String?
+  prUrl       String? @db.Text
   branch      String?
   createdAt   DateTime  @default(now())
   endedAt     DateTime?
@@ -635,10 +635,10 @@ model MediaAsset {
   id          String   @id @default(cuid())
   businessId  String
   kind        String   // image | video
-  prompt      String
+  prompt      String @db.Text
   provider    String   // openai | heygen | ...
   status      String   @default("ready") // pending | ready | failed
-  url         String?
+  url         String? @db.Text
   providerRef String?  // provider job id
   metadata    Json?
   createdAt   DateTime @default(now())
@@ -650,13 +650,13 @@ model SocialPost {
   id          String    @id @default(cuid())
   businessId  String
   channel     String    // linkedin | facebook | instagram | x | tiktok | youtube
-  content     String
-  mediaUrl    String?
+  content     String @db.Text
+  mediaUrl    String? @db.Text
   status      String    @default("draft") // draft | scheduled | published | failed
   scheduledAt DateTime?
   publishedAt DateTime?
   providerRef String?
-  error       String?
+  error       String? @db.Text
   createdAt   DateTime  @default(now())
   @@index([businessId, status])
 }
