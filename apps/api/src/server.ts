@@ -26,6 +26,10 @@ import { billingRoutes } from "./routes/billing";
 import { sopRoutes } from "./routes/sops";
 import { studioRoutes } from "./routes/studio";
 import { tenantPlugin } from "./plugins/tenant";
+import { cronRoutes, startInlineScheduler } from "./routes/cron";
+import { registerInlineProcessors } from "../../workers/src/registry";
+import { INLINE } from "@leadhunter/agents";
+import { runMigrations } from "./lib/migrate";
 
 const app = Fastify({ logger: true });
 
@@ -60,11 +64,12 @@ async function main() {
   await app.register(billingRoutes, { prefix: "/v1" });
   await app.register(sopRoutes, { prefix: "/v1" });
   await app.register(studioRoutes, { prefix: "/v1" });
+  await app.register(cronRoutes, { prefix: "/v1" });
 
   // ── Serve the exported Next.js frontend from this same process (single-app deploy) ──
   // Traversal-safe static serving (no @fastify/static dependency): every resolved
   // path is checked to stay within the frontend directory before it's sent.
-  const frontendDir = resolve(process.env.FRONTEND_DIR || join(process.cwd(), "apps/web/out"));
+  const frontendDir = resolve(process.env.FRONTEND_DIR || join(__dirname, "../../web/out"));
   const MIME: Record<string, string> = {
     ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript",
     ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png",
@@ -91,7 +96,17 @@ async function main() {
     });
   }
 
-  const port = Number(process.env.PORT || 4000);
-  await app.listen({ port, host: "0.0.0.0" });
+  if (process.env.AUTO_MIGRATE === "true") await runMigrations(app.log);
+
+  // No Redis? Run the background workers inside this process.
+  if (INLINE) {
+    registerInlineProcessors();
+    if (process.env.CRON_SECRET || process.env.INLINE_SCHEDULER !== "false") startInlineScheduler();
+    app.log.info("Inline mode: background jobs run inside the API process.");
+  }
+
+  // Passenger (Hostinger) supplies PORT as a number or a socket path.
+  const raw = process.env.PORT || "4000";
+  await app.listen(/^\d+$/.test(raw) ? { port: Number(raw), host: "0.0.0.0" } : { path: raw });
 }
 main().catch((e) => { app.log.error(e); process.exit(1); });

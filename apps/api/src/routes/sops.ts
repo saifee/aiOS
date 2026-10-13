@@ -1,9 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
 import { z } from "zod";
-import { DEPARTMENTS, runAgent } from "@leadhunter/agents";
+import { DEPARTMENTS, runAgent, ai } from "@leadhunter/agents";
 
-const AI = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
 /**
  * SOP Engine. Capture a process (taught via description, or observed from the
@@ -33,15 +32,9 @@ export async function sopRoutes(app: FastifyInstance) {
 
     let gen: any;
     try {
-      const res = await fetch(`${AI}/sop/generate`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business: { name: business?.name, services: business?.services, description: business?.description }, description, activity_log, roles: DEPARTMENTS.map((d) => d.role) }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      gen = await res.json();
+      gen = await ai.generateSop({ business: { name: business?.name, services: business?.services, description: business?.description }, description, activity_log, roles: DEPARTMENTS.map((d) => d.role) });
     } catch {
-      // AI microservice not available (e.g. lite deploy) — save a manual draft instead.
+      // AI unavailable (no API key / quota) — save a manual draft instead.
       return prisma.sop.create({ data: { businessId, title: description?.slice(0, 60) || "New SOP", description: description ?? "", trigger: "manual", steps: [], source: description ? "taught" : "observed", status: "draft" } });
     }
     return prisma.sop.create({

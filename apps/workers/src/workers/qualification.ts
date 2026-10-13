@@ -1,10 +1,9 @@
-import { Job, Queue } from "bullmq";
-import IORedis from "ioredis";
+import { getQueue } from "@leadhunter/agents";
+import type { Job } from "bullmq";
 import { prisma } from "@leadhunter/db";
-import { ai } from "../ai";
+import { ai } from "@leadhunter/agents";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-const outreach = new Queue("outreach", { connection });
+const outreach = getQueue("outreach");
 
 /**
  * AI qualification: hybrid deterministic + LLM scoring.

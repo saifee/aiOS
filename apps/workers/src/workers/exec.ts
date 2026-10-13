@@ -1,4 +1,4 @@
-import { Job } from "bullmq";
+import type { Job } from "bullmq";
 import { prisma } from "@leadhunter/db";
 import { runAgent } from "@leadhunter/agents";
 

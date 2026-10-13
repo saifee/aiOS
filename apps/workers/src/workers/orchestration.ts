@@ -1,4 +1,4 @@
-import { Job } from "bullmq";
+import type { Job } from "bullmq";
 import { handleEvent, handleAgentMessage } from "@leadhunter/agents";
 
 /** Consumes domain events + inter-agent messages and wakes the right agents. */

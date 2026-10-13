@@ -15,11 +15,16 @@
     "test": "turbo run test",
     "db:migrate": "npm -w packages/db run migrate",
     "db:seed": "npm -w packages/db run seed",
-    "docker:up": "docker compose up -d --build"
+    "docker:up": "docker compose up -d --build",
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
     "turbo": "^2.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "esbuild": "^0.23.0"
   },
-  "packageManager": "npm@10.0.0"
+  "packageManager": "npm@10.0.0",
+  "engines": {
+    "node": ">=20"
+  }
 }

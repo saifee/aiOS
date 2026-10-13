@@ -17,6 +17,8 @@ jobs:
         run: npm -w packages/db run generate
       - name: Build all packages
         run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
       - name: Run tests
         run: npm run test
 

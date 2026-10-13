@@ -1,54 +1,25 @@
 import { Worker, Queue } from "bullmq";
-import IORedis from "ioredis";
-import { discoveryProcessor } from "./workers/discovery";
-import { enrichmentProcessor } from "./workers/enrichment";
-import { qualificationProcessor } from "./workers/qualification";
-import { outreachProcessor } from "./workers/outreach";
-import { followupProcessor } from "./workers/followup";
-import { conversationProcessor } from "./workers/conversation";
-import { notifyProcessor } from "./workers/notify";
-import { learningProcessor } from "./workers/learning";
-import { agentRunProcessor } from "./workers/agentrun";
-import { orchestrationProcessor } from "./workers/orchestration";
-import { execProcessor } from "./workers/exec";
-import { socialProcessor } from "./workers/social";
-import { swarmProcessor } from "./workers/swarm";
+import { INLINE, redis } from "@leadhunter/agents";
+import { processors, SCHEDULE } from "./registry";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-const opts = { connection, concurrency: 5 };
-
-new Worker("discovery", discoveryProcessor, opts);
-new Worker("enrichment", enrichmentProcessor, opts);
-new Worker("qualification", qualificationProcessor, opts);
-new Worker("outreach", outreachProcessor, { ...opts, concurrency: 3 });
-new Worker("followup", followupProcessor, opts);
-new Worker("conversation", conversationProcessor, opts);
-new Worker("notify", notifyProcessor, opts);
-new Worker("learning", learningProcessor, opts);
-new Worker("agent-run", agentRunProcessor, { ...opts, concurrency: 4 });
-new Worker("orchestration", orchestrationProcessor, opts);
-new Worker("exec", execProcessor, opts);
-new Worker("social", socialProcessor, opts);
-new Worker("swarm", swarmProcessor, { ...opts, concurrency: 2 });
-
-// ── Recurring autonomous loops ────────────────────────────────
-async function scheduleCrons() {
-  const discovery = new Queue("discovery", { connection });
-  const followup = new Queue("followup", { connection });
-  const learning = new Queue("learning", { connection });
-  // Discover new leads for every active campaign every 6 hours
-  await discovery.add("discover-all", {}, { repeat: { pattern: "0 */6 * * *" }, removeOnComplete: true });
-  // Check due follow-ups every 30 minutes
-  await followup.add("scan", {}, { repeat: { pattern: "*/30 * * * *" }, removeOnComplete: true });
-  // Recompute learning insights nightly
-  await learning.add("recompute", {}, { repeat: { pattern: "0 2 * * *" }, removeOnComplete: true });
+/** Standalone worker process (Docker / Render with Redis). On Hostinger the API runs these inline instead. */
+if (INLINE) {
+  console.error("REDIS_URL is not set (or LITE_MODE=true): jobs already run inside the API process. Nothing to do here.");
+  process.exit(0);
 }
-async function scheduleExec() {
-  const exec = new Queue("exec", { connection });
-  await exec.add("growth-scan", {}, { repeat: { pattern: "0 6 * * *" }, removeOnComplete: true });
-  await exec.add("morning-brief", {}, { repeat: { pattern: "0 7 * * *" }, removeOnComplete: true });
-  const social = new Queue("social", { connection });
-  await social.add("publish-due", {}, { repeat: { pattern: "*/5 * * * *" }, removeOnComplete: true });
-}
-scheduleExec().catch(console.error);
-scheduleCrons().then(() => console.log("LeadHunter workers online — autonomous loops scheduled."));
+
+const connection = redis();
+const concurrency: Record<string, number> = { outreach: 3, "agent-run": 4, swarm: 2 };
+for (const [name, fn] of Object.entries(processors)) new Worker(name, fn as any, { connection, concurrency: concurrency[name] ?? 5 });
+
+// Recurring autonomous loops — one BullMQ repeatable job per entry in SCHEDULE
+const CRON: Record<string, string> = {
+  "followup-scan": "*/30 * * * *", "discover-all": "0 */6 * * *", learning: "0 2 * * *",
+  "growth-scan": "0 6 * * *", "morning-brief": "0 7 * * *", "social-publish": "*/5 * * * *",
+};
+(async () => {
+  for (const [key, s] of Object.entries(SCHEDULE)) {
+    await new Queue(s.queue, { connection }).add(s.job, {}, { repeat: { pattern: CRON[key] }, removeOnComplete: true });
+  }
+  console.log("LeadHunter workers online — autonomous loops scheduled.");
+})().catch(console.error);

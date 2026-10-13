@@ -1,12 +1,11 @@
-import { Job, Queue } from "bullmq";
-import IORedis from "ioredis";
+import { getQueue } from "@leadhunter/agents";
+import type { Job } from "bullmq";
 import { prisma } from "@leadhunter/db";
 import { sendEmail, sendWhatsAppTemplate, sendWhatsAppText } from "@leadhunter/integrations";
-import { ai } from "../ai";
+import { ai } from "@leadhunter/agents";
 import { consumeQuota } from "@leadhunter/agents";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-const followup = new Queue("followup", { connection });
+const followup = getQueue("followup");
 
 /**
  * Outreach engine — every send passes four gates:

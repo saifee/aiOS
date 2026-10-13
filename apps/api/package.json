@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "node ../../scripts/bundle.mjs src/server.ts dist/server.js",
     "start": "node dist/server.js",
     "lint": "echo ok",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.0",

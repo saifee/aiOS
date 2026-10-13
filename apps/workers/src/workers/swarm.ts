@@ -1,4 +1,4 @@
-import { Job } from "bullmq";
+import type { Job } from "bullmq";
 import { runSwarm } from "@leadhunter/agents";
 /** Executes a delegated build through the multi-model developer swarm. */
 export async function swarmProcessor(job: Job) {

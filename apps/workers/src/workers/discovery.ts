@@ -1,12 +1,11 @@
-import { Job, Queue } from "bullmq";
-import IORedis from "ioredis";
+import { getQueue } from "@leadhunter/agents";
+import type { Job } from "bullmq";
 import { createHash } from "crypto";
 import { prisma } from "@leadhunter/db";
 import { discoverViaPlaces, discoverViaSearch, buildQueries, RawLead } from "@leadhunter/integrations";
 import { consumeQuota } from "@leadhunter/agents";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-const enrichment = new Queue("enrichment", { connection });
+const enrichment = getQueue("enrichment");
 
 /**
  * Discovery loop: for each active campaign, query configured sources,

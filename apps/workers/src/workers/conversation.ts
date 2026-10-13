@@ -1,11 +1,10 @@
-import { Job, Queue } from "bullmq";
-import IORedis from "ioredis";
+import { getQueue } from "@leadhunter/agents";
+import type { Job } from "bullmq";
 import { prisma } from "@leadhunter/db";
-import { ai } from "../ai";
+import { ai } from "@leadhunter/agents";
 import { sendEmail, sendWhatsAppText } from "@leadhunter/integrations";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-const notify = new Queue("notify", { connection });
+const notify = getQueue("notify");
 
 /**
  * AI conversation agent: on every inbound reply, classify intent, draft a

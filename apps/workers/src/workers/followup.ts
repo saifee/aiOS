@@ -1,18 +1,17 @@
-import { Job, Queue } from "bullmq";
-import IORedis from "ioredis";
+import { getQueue, INLINE } from "@leadhunter/agents";
+import type { Job } from "bullmq";
 import { prisma } from "@leadhunter/db";
-import { ai } from "../ai";
+import { ai } from "@leadhunter/agents";
 import { sendEmail } from "@leadhunter/integrations";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", { maxRetriesPerRequest: null });
-const followup = new Queue("followup", { connection });
+const followup = getQueue("followup");
 
 /**
  * Follow-up engine: if no inbound reply since last outbound, send a
  * gentle follow-up; stop after campaign.maxFollowUps attempts or on any reply.
  */
 export async function followupProcessor(job: Job) {
-  if (job.name === "scan") return; // reserved for reconciliation sweeps
+  if (job.name === "scan") return INLINE ? scanDue() : undefined; // Redis mode uses delayed jobs instead
 
   const { leadId, attempt } = job.data as { leadId: string; attempt: number };
   const lead = await prisma.lead.findUnique({
@@ -44,4 +43,31 @@ export async function followupProcessor(job: Job) {
   const days = lead.campaign?.followUpDays ?? [3, 7, 14];
   const nextDelay = (days[attempt] ?? days[days.length - 1]) * 86400_000;
   await followup.add("check", { leadId, attempt: attempt + 1 }, { delay: nextDelay, removeOnComplete: true });
+}
+
+/**
+ * Inline mode has no durable delayed jobs, so derive what is due from the database:
+ * a lead is due when it is still CONTACTED, has no inbound reply, and its last outbound
+ * message is older than the next configured interval (campaign.followUpDays).
+ */
+async function scanDue() {
+  const leads = await prisma.lead.findMany({
+    where: { stage: "CONTACTED", optedOut: false },
+    include: { campaign: true, messages: { orderBy: { createdAt: "asc" }, select: { direction: true, createdAt: true, meta: true } } },
+    take: 200,
+  });
+  for (const lead of leads) {
+    if (lead.messages.some((m) => m.direction === "INBOUND")) continue;
+    const outbound = lead.messages.filter((m) => m.direction === "OUTBOUND");
+    if (!outbound.length) continue;
+    const attempt = 1 + outbound.filter((m) => (m.meta as any)?.followUp).length; // next follow-up number
+    const days = lead.campaign?.followUpDays ?? [3, 7, 14];
+    const max = lead.campaign?.maxFollowUps ?? 3;
+    if (attempt > max) continue;
+    const waitDays = days[attempt - 1] ?? days[days.length - 1];
+    const last = outbound[outbound.length - 1].createdAt.getTime();
+    if (Date.now() - last >= waitDays * 86400_000) {
+      await followupProcessor({ name: "check", data: { leadId: lead.id, attempt } } as unknown as Job);
+    }
+  }
 }

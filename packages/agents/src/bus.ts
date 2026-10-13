@@ -1,19 +1,9 @@
-import { Queue } from "bullmq";
-import IORedis from "ioredis";
 import { prisma } from "@leadhunter/db";
+import { getQueue } from "./jobqueue";
 
-const LITE = process.env.LITE_MODE === "true" || !process.env.REDIS_URL;
-
-export const connection = LITE ? (null as any) : new IORedis(process.env.REDIS_URL!, { maxRetriesPerRequest: null });
-
-function makeQueue(name: string): Queue {
-  if (LITE) return { add: async () => { console.warn(`[lite] queue "${name}" disabled`); return null; }, name } as unknown as Queue;
-  return new Queue(name, { connection });
-}
-
-export const orchestrationQueue = makeQueue("orchestration");
-export const agentQueue = makeQueue("agent-run");
-export const swarmQueue = makeQueue("swarm");
+export const orchestrationQueue = getQueue("orchestration");
+export const agentQueue = getQueue("agent-run");
+export const swarmQueue = getQueue("swarm");
 
 export type DomainEvent = { businessId: string; type: string; payload: Record<string, unknown> };
 
