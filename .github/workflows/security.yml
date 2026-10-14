@@ -81,5 +81,5 @@ jobs:
         run: npm run test
       - name: Generate CycloneDX SBOM (production dependencies)
         run: npx --yes @cyclonedx/cyclonedx-npm@latest --omit dev --output-format JSON --output-file sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: sbom-cyclonedx, path: sbom.cdx.json, retention-days: 90 }
