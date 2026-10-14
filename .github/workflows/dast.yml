@@ -1,0 +1,12 @@
+name: DAST baseline (manual)
+# OWASP ZAP passive baseline against a STAGING deployment. Never point this at production data.
+# Set the repository variable STAGING_URL (e.g. https://staging.example.com) and run manually.
+on: { workflow_dispatch: {} }
+permissions: { contents: read, issues: write }
+jobs:
+  zap-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: zaproxy/action-baseline@v0.14.0
+        with: { target: "${{ vars.STAGING_URL }}", fail_action: false }

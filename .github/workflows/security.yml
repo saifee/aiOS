@@ -1,0 +1,85 @@
+name: Security
+on:
+  push: { branches: [main] }
+  pull_request:
+  schedule: [{ cron: "17 3 * * 1" }]   # weekly: new advisories appear without code changes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: { group: "security-${{ github.ref }}", cancel-in-progress: true }
+
+jobs:
+  dependency-audit:                       # BLOCKING: fails on high/critical in any npm dependency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: npm audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit (all dependencies incl. build tooling)
+        run: npm audit --audit-level=high
+      - name: Verify registry signatures / provenance
+        run: npm audit signatures
+      - name: pip-audit (optional Python AI service)
+        run: pipx run pip-audit -r services/ai/requirements.txt
+
+  dependency-review:                      # blocks PRs that introduce known-vulnerable or disallowed-license deps
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, pull-requests: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with: { fail-on-severity: high }
+
+  secret-scan:                            # BLOCKING: committed secrets (full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+
+  codeql:                                 # SAST (JS/TS + Python)
+    runs-on: ubuntu-latest
+    permissions: { contents: read, security-events: write, actions: read }
+    strategy: { matrix: { language: [javascript-typescript, python] } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with: { languages: "${{ matrix.language }}", queries: security-extended }
+      - uses: github/codeql-action/analyze@v3
+
+  semgrep:                                # SAST rules for Node/TS + OWASP Top 10 (findings reported, see docs/security/SECURITY_TESTING.md)
+    runs-on: ubuntu-latest
+    container: { image: semgrep/semgrep:latest }
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep scan --config p/typescript --config p/nodejs --config p/owasp-top-ten --error --severity ERROR --exclude node_modules --exclude dist --exclude out
+
+  osv-scan:                               # second opinion on lockfile advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with: { scan-args: "--lockfile=package-lock.json --lockfile=services/ai/requirements.txt" }
+
+  tests-and-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm -w packages/db run generate
+      - run: npm run typecheck
+      - name: Security regression tests (tenant isolation, webhooks, SSRF, headers, crypto)
+        run: npm run test
+      - name: Generate CycloneDX SBOM (production dependencies)
+        run: npx --yes @cyclonedx/cyclonedx-npm@latest --omit dev --output-format JSON --output-file sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom-cyclonedx, path: sbom.cdx.json, retention-days: 90 }
