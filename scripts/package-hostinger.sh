@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds kingslee-aios-hostinger.zip — a ready-to-run package for Hostinger Cloud.
+# Builds aios-hostinger.zip — a ready-to-run package for Hostinger Cloud.
 # Upload it, set the entry file to app.js, add env vars. NO `npm install` and NO build step on the host.
 # Needs internet (downloads Prisma engines for Hostinger's Linux). Run on your PC, a VPS, or via GitHub Actions.
 set -euo pipefail
@@ -21,7 +21,7 @@ say "Building web UI (static export)";     NEXT_PUBLIC_API_URL="" npm -w apps/we
 say "Bundling API (all libraries inside)"; npm -w apps/api run build:standalone
 
 say "Assembling $OUT/"
-rm -rf "$OUT" kingslee-aios-hostinger.zip
+rm -rf "$OUT" aios-hostinger.zip
 mkdir -p "$OUT/apps/api/dist" "$OUT/apps/web" "$OUT/packages/db/prisma" "$OUT/node_modules/@prisma"
 cp apps/api/dist-standalone/server.js "$OUT/apps/api/dist/server.js"
 cp -r apps/web/out "$OUT/apps/web/out"
@@ -32,11 +32,11 @@ cp -r node_modules/.prisma "$OUT/node_modules/.prisma"
 find "$OUT/node_modules" -name "*.d.ts" -delete
 # no dependencies listed on purpose: the host has nothing to install
 cat > "$OUT/package.json" <<'JSON'
-{ "name": "kingslee-aios", "version": "1.0.0", "private": true, "main": "app.js",
+{ "name": "aios", "version": "1.0.0", "private": true, "main": "app.js",
   "scripts": { "start": "node app.js" }, "engines": { "node": ">=20" } }
 JSON
 
 say "Zipping"
-(cd "$OUT" && zip -qr ../kingslee-aios-hostinger.zip .)
-ls -lh kingslee-aios-hostinger.zip
-printf "\n\033[1;32m✓ Done. Upload kingslee-aios-hostinger.zip in hPanel → Node.js (see docs/HOSTINGER-CLOUD.md)\033[0m\n"
+(cd "$OUT" && zip -qr ../aios-hostinger.zip .)
+ls -lh aios-hostinger.zip
+printf "\n\033[1;32m✓ Done. Upload aios-hostinger.zip in hPanel → Node.js (see docs/HOSTINGER-CLOUD.md)\033[0m\n"

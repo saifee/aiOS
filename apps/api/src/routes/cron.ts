@@ -35,12 +35,13 @@ function authorized(given: unknown): boolean {
 /**
  * External scheduler endpoint — for hosts that cannot keep a worker alive.
  * Add ONE cron job in the host panel, every 5 minutes:
- *   curl -fsS "https://YOUR-DOMAIN/v1/cron/tick?key=$CRON_SECRET"
+ *   curl -fsS -H "x-cron-key: $CRON_SECRET" "https://YOUR-DOMAIN/v1/cron/tick"   (header preferred: URLs end up in logs)
+ * ?key= is still accepted for hosts that cannot send headers; the logger redacts it.
  */
 export async function cronRoutes(app: FastifyInstance) {
-  app.all("/cron/tick", async (req, reply) => {
+  app.all("/cron/tick", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
     const q = req.query as any;
-    if (!authorized(q.key ?? req.headers["x-cron-key"])) return reply.code(401).send({ error: "bad key" });
+    if (!authorized(req.headers["x-cron-key"] ?? q.key)) return reply.code(401).send({ error: "bad key" });
     const ran = await cronTick(typeof q.job === "string" ? q.job : undefined);
     return { ok: true, started: ran };
   });

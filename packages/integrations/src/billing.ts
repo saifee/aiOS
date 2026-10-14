@@ -11,8 +11,9 @@ export function stripe(): Stripe {
 }
 
 /** Plans + limits. priceId comes from your Stripe dashboard (env-overridable). */
-export type PlanKey = "TRIAL" | "STARTER" | "GROWTH" | "SCALE" | "ENTERPRISE";
-export const PLANS: Record<PlanKey, { name: string; priceMonthly: number; priceId?: string; limits: { leads: number; outreach: number; calls: number; seats: number; agents: number } }> = {
+export type PlanKey = "FREE" | "TRIAL" | "STARTER" | "GROWTH" | "SCALE" | "ENTERPRISE";
+export const PLANS: Record<PlanKey, { name: string; priceMonthly: number; priceId?: string; byokOnly?: boolean; tagline?: string; limits: { leads: number; outreach: number; calls: number; seats: number; agents: number } }> = {
+  FREE:       { name: "Free",       priceMonthly: 0,    byokOnly: true, tagline: "Explore everything. Power it with your own AI keys.", limits: { leads: 25, outreach: 0, calls: 0, seats: 1, agents: 27 } },
   TRIAL:      { name: "Trial",      priceMonthly: 0,    limits: { leads: 100,    outreach: 200,   calls: 50,    seats: 1,  agents: 5 } },
   STARTER:    { name: "Starter",    priceMonthly: 149,  priceId: process.env.STRIPE_PRICE_STARTER, limits: { leads: 1000,  outreach: 2000,  calls: 300,   seats: 3,  agents: 10 } },
   GROWTH:     { name: "Growth",     priceMonthly: 499,  priceId: process.env.STRIPE_PRICE_GROWTH,  limits: { leads: 5000,  outreach: 10000, calls: 1500,  seats: 10, agents: 27 } },

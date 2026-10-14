@@ -34,7 +34,7 @@ export async function studioRoutes(app: FastifyInstance) {
   app.post("/businesses/:businessId/media/image", async (req) => {
     const { businessId } = req.params as any; await app.requireBusiness(req, businessId);
     const { prompt } = z.object({ prompt: z.string().min(3) }).parse(req.body);
-    return runAgent({ businessId, role: "graphic_designer", input: { task: `Create this image and return the asset: ${prompt}` }, trigger: "manual" });
+    return runAgent({ businessId, role: "graphic_designer", input: { task: `Create this image and return the asset: ${prompt}` }, trigger: "manual", userId: req.auth!.userId });
   });
   app.post("/media/:id/refresh", async (req) => { // poll a pending video
     const { id } = req.params as any;

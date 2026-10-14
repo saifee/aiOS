@@ -21,5 +21,5 @@ const CRON: Record<string, string> = {
   for (const [key, s] of Object.entries(SCHEDULE)) {
     await new Queue(s.queue, { connection }).add(s.job, {}, { repeat: { pattern: CRON[key] }, removeOnComplete: true });
   }
-  console.log("LeadHunter workers online — autonomous loops scheduled.");
+  console.log("aiOS workers online — autonomous loops scheduled.");
 })().catch(console.error);

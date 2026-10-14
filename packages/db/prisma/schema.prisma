@@ -1,4 +1,4 @@
-// LeadHunter AI — multi-tenant schema
+// aiOS — multi-tenant schema
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,12 +14,13 @@ model Tenant {
   id               String       @id @default(cuid())
   name             String
   slug             String       @unique
-  plan             Plan         @default(TRIAL)
+  plan             Plan         @default(FREE)
   stripeCustomerId String?
   createdAt        DateTime     @default(now())
   users            Membership[]
   businesses       Business[]
   auditLogs        AuditLog[]
+  aiKeys           AiKey[]
 }
 
 enum Plan {
@@ -28,6 +29,7 @@ enum Plan {
   GROWTH
   SCALE
   ENTERPRISE
+  FREE   // appended last so existing MySQL ENUM columns can be extended in place
 }
 
 model User {
@@ -38,6 +40,8 @@ model User {
   createdAt     DateTime       @default(now())
   memberships   Membership[]
   notifications Notification[]
+  aiKeys        AiKey[]
+  prefs         UserPref[]
 }
 
 model Membership {
@@ -91,6 +95,8 @@ model Business {
   integrations        Integration[]
   insights            Insight[]
   agents              Agent[]
+  goals               Goal[]
+  decisions           Decision[]
   @@index([tenantId])
 }
 
@@ -659,4 +665,66 @@ model SocialPost {
   error       String? @db.Text
   createdAt   DateTime  @default(now())
   @@index([businessId, status])
+}
+
+
+// ── aiOS: bring-your-own AI keys (per user, encrypted at rest) ──────────────
+model AiKey {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  provider  String            // anthropic | openai | gemini | groq | openrouter | ... | custom
+  label     String?
+  model     String?           // blank = provider default
+  baseUrl   String?           // custom OpenAI-compatible endpoints only
+  keyEnc    String    @db.Text
+  keyHint   String            // last 4 characters, for display
+  priority  Int       @default(0)   // failover order, lowest first
+  enabled   Boolean   @default(true)
+  shared    Boolean   @default(true) // let teammates + background jobs of this workspace use it
+  lastOkAt  DateTime?
+  lastError String?   @db.Text
+  createdAt DateTime  @default(now())
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([tenantId, priority])
+  @@index([userId])
+}
+
+// Per-user UI preferences (dashboard layouts etc.)
+model UserPref {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  value     Json?
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, key])
+}
+
+// Chief-of-staff memory: goals/lanes and a decision log
+model Goal {
+  id         String    @id @default(cuid())
+  businessId String
+  title      String
+  lane       String?
+  target     String?
+  progress   Int       @default(0)
+  status     String    @default("active") // active | done | paused
+  dueAt      DateTime?
+  createdAt  DateTime  @default(now())
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@index([businessId, status])
+}
+
+model Decision {
+  id         String   @id @default(cuid())
+  businessId String
+  title      String
+  context    String?  @db.Text
+  outcome    String?  @db.Text
+  decidedBy  String?
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@index([businessId, createdAt])
 }

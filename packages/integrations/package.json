@@ -12,6 +12,6 @@
     "stripe": "^16.2.0"
   },
   "devDependencies": {
-    "vitest": "^1.6.0"
+    "vitest": "^5.0.4"
   }
 }

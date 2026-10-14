@@ -1,4 +1,5 @@
-import { registerProcessor } from "@leadhunter/agents";
+import { registerProcessor, withLlmContext } from "@leadhunter/agents";
+import { prisma } from "@leadhunter/db";
 import { discoveryProcessor } from "./workers/discovery";
 import { enrichmentProcessor } from "./workers/enrichment";
 import { qualificationProcessor } from "./workers/qualification";
@@ -13,12 +14,24 @@ import { execProcessor } from "./workers/exec";
 import { socialProcessor } from "./workers/social";
 import { swarmProcessor } from "./workers/swarm";
 
-export const processors = {
+/** Run a job inside its workspace's AI context so it uses that workspace's keys/plan. */
+async function tenantOf(d: any): Promise<string | undefined> {
+  try {
+    if (d?.businessId) return (await prisma.business.findUnique({ where: { id: d.businessId }, select: { tenantId: true } }))?.tenantId;
+    if (d?.leadId) return (await prisma.lead.findUnique({ where: { id: d.leadId }, select: { business: { select: { tenantId: true } } } }))?.business.tenantId;
+  } catch { /* fall through to system context */ }
+  return undefined;
+}
+const scoped = <F extends (job: any) => Promise<any>>(fn: F): F =>
+  (async (job: any) => { const tenantId = await tenantOf(job?.data); return tenantId ? withLlmContext({ tenantId }, () => fn(job)) : fn(job); }) as F;
+
+const raw = {
   discovery: discoveryProcessor, enrichment: enrichmentProcessor, qualification: qualificationProcessor,
   outreach: outreachProcessor, followup: followupProcessor, conversation: conversationProcessor,
   notify: notifyProcessor, learning: learningProcessor, "agent-run": agentRunProcessor,
   orchestration: orchestrationProcessor, exec: execProcessor, social: socialProcessor, swarm: swarmProcessor,
 } as const;
+export const processors = Object.fromEntries(Object.entries(raw).map(([k, f]) => [k, scoped(f as any)])) as typeof raw;
 
 /** Inline mode: attach every processor to the in-process queue. */
 export function registerInlineProcessors() {

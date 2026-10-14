@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bring-up + verification for Kingslee AIOS. Run from repo root in an
+# Bring-up + verification for aiOS. Run from repo root in an
 # environment with network access to binaries.prisma.sh (your machine/VPS).
 set -euo pipefail
 info(){ printf "\n\033[1;36m▶ %s\033[0m\n" "$1"; }

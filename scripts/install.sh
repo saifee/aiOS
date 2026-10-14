@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kingslee AIOS — interactive installer for self-hosting (local machine or VPS).
+# aiOS — interactive installer for self-hosting (local machine or VPS).
 # Prompts for database + Redis + your Anthropic key, writes .env, sets up the
 # database, seeds it, and tells you how to start. Run from the repo root.
 set -euo pipefail
@@ -7,7 +7,7 @@ say(){ printf "\n\033[1;36m%s\033[0m\n" "$1"; }
 ask(){ local p="$1" d="${2:-}" v; if [ -n "$d" ]; then read -rp "$p [$d]: " v; echo "${v:-$d}"; else read -rp "$p: " v; echo "$v"; fi; }
 asksecret(){ local p="$1" v; read -rsp "$p: " v; echo "" >&2; echo "$v"; }
 
-say "Kingslee AIOS installer"
+say "aiOS installer"
 echo "Answer a few questions and I'll configure everything."
 
 DB_HOST=$(ask "Database host" "localhost")
@@ -44,8 +44,8 @@ echo ".env written."
 say "Optional: start MariaDB + Redis with Docker?"
 read -rp "Start local MariaDB+Redis containers now? (y/N): " startdb
 if [[ "$startdb" =~ ^[Yy] ]]; then
-  docker run -d --name kingslee-db -e MARIADB_USER="$DB_USER" -e MARIADB_PASSWORD="$DB_PASS" -e MARIADB_ROOT_PASSWORD="$DB_PASS" -e MARIADB_DATABASE="$DB_NAME" -p "${DB_PORT}:3306" mariadb:10.11 || true
-  docker run -d --name kingslee-redis -p 6379:6379 redis:7-alpine || true
+  docker run -d --name aios-db -e MARIADB_USER="$DB_USER" -e MARIADB_PASSWORD="$DB_PASS" -e MARIADB_ROOT_PASSWORD="$DB_PASS" -e MARIADB_DATABASE="$DB_NAME" -p "${DB_PORT}:3306" mariadb:10.11 || true
+  docker run -d --name aios-redis -p 6379:6379 redis:7-alpine || true
   echo "Waiting for MariaDB…"; sleep 6
 fi
 

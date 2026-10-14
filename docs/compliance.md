@@ -1,6 +1,6 @@
 # Compliance & Responsible Outreach
 
-LeadHunter is built to keep tenants inside email/messaging law and platform policy:
+aiOS is built to keep tenants inside email/messaging law and platform policy:
 
 1. **Consent & opt-out**: every email carries a working unsubscribe link and List-Unsubscribe header. STOP/unsubscribe keywords (English + Arabic) on any channel immediately archive the lead and write email+phone to the global suppression list. Suppression is checked before *every* send.
 2. **Deliverability hygiene**: bounces and spam complaints auto-suppress. Daily per-business caps and working-hours windows prevent burst sending.

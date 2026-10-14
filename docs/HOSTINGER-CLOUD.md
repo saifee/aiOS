@@ -1,10 +1,10 @@
-# Kingslee AIOS on Hostinger Cloud — MySQL, no `npm install`
+# aiOS on Hostinger Cloud — MySQL, no `npm install`
 
 Runs as ONE Node.js app: API + web UI + background workers. Database = Hostinger's own MySQL/MariaDB.
 No Redis, no Python, no Docker, nothing to install or build on the host.
 
 ## 1. Get the ready-to-upload package
-You need `kingslee-aios-hostinger.zip` (one-time build, ~80 MB because it carries the database engine
+You need `aios-hostinger.zip` (one-time build, ~80 MB because it carries the database engine
 for every Linux flavour Hostinger might use):
 
 - **GitHub:** push this repo → Actions → *Build Hostinger package* → Run workflow → download the artifact.
@@ -16,7 +16,7 @@ Create a database + user. Note the three names (look like `u123456789_aios`). Ho
 
 ## 3. Create the Node.js app (hPanel → Websites → ai.saifullahkhalid.com → Node.js)
 - Node version 20 or 22
-- Upload `kingslee-aios-hostinger.zip` (File Manager → upload → extract into the app folder, or the upload option in the Node.js screen)
+- Upload `aios-hostinger.zip` (File Manager → upload → extract into the app folder, or the upload option in the Node.js screen)
 - Entry file: `app.js`      Build command: *(leave empty)*      Install: *(skip / none)*
 - Environment variables: everything in `.env.hostinger`, filled in
 - Start / Restart

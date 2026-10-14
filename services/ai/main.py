@@ -1,5 +1,6 @@
-"""LeadHunter AI microservice — scoring, generation, conversation."""
-from fastapi import FastAPI
+"""aiOS microservice — scoring, generation, conversation."""
+import hmac, os
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from typing import Any
 
@@ -8,7 +9,13 @@ from generation import generate_email, generate_whatsapp
 from conversation import handle_reply
 from sop import generate_sop
 
-app = FastAPI(title="LeadHunter AI", version="1.0.0")
+def require_key(x_internal_key: str | None = Header(default=None)) -> None:
+    """Optional shared-secret guard for the internal AI service (set AI_SERVICE_KEY on both sides)."""
+    want = os.environ.get("AI_SERVICE_KEY")
+    if want and not (x_internal_key and hmac.compare_digest(x_internal_key, want)):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+app = FastAPI(title="aiOS", version="1.0.0", dependencies=[Depends(require_key)], docs_url=None, redoc_url=None, openapi_url=None)
 
 class ScoreReq(BaseModel):
     business: dict
@@ -32,7 +39,7 @@ class ReplyReq(BaseModel):
     history: list[dict]
     inbound: str
 
-@app.get("/health")
+@app.get("/health", dependencies=[])
 def health() -> dict[str, Any]:
     return {"ok": True}
 

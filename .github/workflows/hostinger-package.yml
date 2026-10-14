@@ -11,9 +11,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Build kingslee-aios-hostinger.zip
+      - name: Build aios-hostinger.zip
         run: ./scripts/package-hostinger.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: kingslee-aios-hostinger
-          path: kingslee-aios-hostinger.zip
+          name: aios-hostinger
+          path: aios-hostinger.zip

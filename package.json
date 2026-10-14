@@ -2,7 +2,7 @@
   "name": "leadhunter",
   "private": true,
   "version": "1.0.0",
-  "description": "Kingslee AIOS \u2014 an AI Operating System for a software agency: every department is an autonomous AI employee on a shared CRM, knowledge base, event bus, and phone system.",
+  "description": "aiOS \u2014 the AI operating system for your company: every department is an autonomous AI employee on a shared CRM, knowledge base, event bus, and phone system.",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -17,16 +17,19 @@
     "db:seed": "npm -w packages/db run seed",
     "docker:up": "docker compose up -d --build",
     "typecheck": "turbo run typecheck",
-    "db:sql": "node scripts/gen-mysql-sql.mjs"
+    "db:sql": "node scripts/gen-mysql-sql.mjs",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "audit:all": "npm audit --audit-level=high",
+    "sbom": "npx --yes @cyclonedx/cyclonedx-npm@latest --omit dev --output-format JSON --output-file docs/security/sbom.cdx.json"
   },
   "devDependencies": {
+    "@prisma/prisma-schema-wasm": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+    "esbuild": "^0.28.2",
     "turbo": "^2.0.0",
-    "typescript": "^5.5.0",
-    "esbuild": "^0.23.0",
-    "@prisma/prisma-schema-wasm": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2"
+    "typescript": "^5.5.0"
   },
   "packageManager": "npm@10.0.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19"
   }
 }

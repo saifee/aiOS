@@ -1,4 +1,4 @@
-# Render Blueprint for Kingslee AIOS — deploys the whole stack from one file.
+# Render Blueprint for aiOS — deploys the whole stack from one file.
 # New → Blueprint → connect this repo → Render reads this file.
 # Docker runtime reuses the Dockerfiles already in the repo.
 

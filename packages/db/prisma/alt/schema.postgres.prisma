@@ -1,4 +1,4 @@
-// LeadHunter AI — multi-tenant schema
+// aiOS — multi-tenant schema
 generator client {
   provider = "prisma-client-js"
 }

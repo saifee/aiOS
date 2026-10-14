@@ -25,17 +25,36 @@ import { biRoutes } from "./routes/bi";
 import { billingRoutes } from "./routes/billing";
 import { sopRoutes } from "./routes/sops";
 import { studioRoutes } from "./routes/studio";
+import { meRoutes } from "./routes/me";
 import { tenantPlugin } from "./plugins/tenant";
 import { cronRoutes, startInlineScheduler } from "./routes/cron";
 import { registerInlineProcessors } from "../../workers/src/registry";
 import { INLINE } from "@leadhunter/agents";
 import { runMigrations } from "./lib/migrate";
 
-const app = Fastify({ logger: true });
+import { registerSecurity, resolveJwtSecret, allowedOrigins, trustProxySetting, securityWarnings, isProd } from "./lib/security";
+
+const app = Fastify({
+  trustProxy: trustProxySetting(),
+  bodyLimit: 1_048_576,
+  logger: {
+    // Never write credentials or PII into logs.
+    redact: { paths: ["req.headers.authorization", "req.headers.cookie", "req.headers['x-cron-key']", "req.headers['x-webhook-secret']", "req.headers['x-setup-token']", "res.headers['set-cookie']"], censor: "[redacted]" },
+    serializers: { req(r) { return { method: r.method, url: String(r.url).replace(/([?&](?:key|token)=)[^&]*/gi, "$1[redacted]"), host: r.host, remoteAddress: r.ip }; } },
+  },
+});
 
 async function main() {
-  await app.register(cors, { origin: true, credentials: true });
-  await app.register(jwt, { secret: process.env.JWT_SECRET || "dev-secret" });
+  const warnings = securityWarnings();
+  for (const w of warnings) app.log.warn(`[security] ${w}`);
+  registerSecurity(app);
+  const origins = allowedOrigins();
+  await app.register(cors, {
+    // Bearer-token API (no cookies) → credentials stay off; only allow-listed origins; same-origin has no Origin header.
+    origin: (origin, cb) => cb(null, !origin || origins.includes(origin)),
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], maxAge: 600,
+  });
+  await app.register(jwt, { secret: resolveJwtSecret(), sign: { algorithm: "HS256", expiresIn: process.env.JWT_EXPIRES_IN || "24h" }, verify: { algorithms: ["HS256"] } });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   // Raw body for Stripe webhook signature verification (opt-in per route via config.rawBody)
   await app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
@@ -58,6 +77,7 @@ async function main() {
   await app.register(voiceRoutes, { prefix: "/v1/voice" });
   await app.register(commandRoutes, { prefix: "/v1" });
   await app.register(agentRoutes, { prefix: "/v1" });
+  await app.register(meRoutes, { prefix: "/v1" });
   await app.register(knowledgeRoutes, { prefix: "/v1" });
   await app.register(opsRoutes, { prefix: "/v1" });
   await app.register(biRoutes, { prefix: "/v1" });
@@ -75,7 +95,7 @@ async function main() {
     ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png",
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".ico": "image/x-icon",
     ".webp": "image/webp", ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf",
-    ".txt": "text/plain", ".map": "application/json",
+    ".txt": "text/plain",
   };
   function safeFile(rel: string): string | null {
     const full = resolve(frontendDir, rel.replace(/^\/+/, ""));
@@ -85,7 +105,10 @@ async function main() {
   if (existsSync(frontendDir)) {
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith("/v1")) return reply.code(404).send({ error: "Not found" });
-      const urlPath = decodeURIComponent(req.url.split("?")[0]);
+      let urlPath: string;
+      try { urlPath = decodeURIComponent(req.url.split("?")[0]); } catch { return reply.code(400).send("Bad request"); }
+      // Never serve dotfiles, source maps or anything with a NUL byte / path-segment starting with "."
+      if (urlPath.includes("\0") || /(^|\/)\./.test(urlPath.replace(/^\/\.well-known\//, "/")) || urlPath.endsWith(".map")) return reply.code(404).send("Not found");
       const clean = urlPath.replace(/^\/+|\/+$/g, "");
       const candidates = extname(urlPath) ? [clean] : [`${clean}.html`, `${clean}/index.html`, "index.html"];
       for (const c of candidates) {
@@ -96,6 +119,7 @@ async function main() {
     });
   }
 
+  if (isProd()) app.log.info("Production security profile active (HSTS, strict CORS, JWT secret enforced).");
   if (process.env.AUTO_MIGRATE === "true") await runMigrations(app.log);
 
   // No Redis? Run the background workers inside this process.

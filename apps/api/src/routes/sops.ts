@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
 import { z } from "zod";
-import { DEPARTMENTS, runAgent, ai } from "@leadhunter/agents";
+import { DEPARTMENTS, runAgent, ai, withLlmContext } from "@leadhunter/agents";
 
 
 /**
@@ -32,7 +32,7 @@ export async function sopRoutes(app: FastifyInstance) {
 
     let gen: any;
     try {
-      gen = await ai.generateSop({ business: { name: business?.name, services: business?.services, description: business?.description }, description, activity_log, roles: DEPARTMENTS.map((d) => d.role) });
+      gen = await withLlmContext({ tenantId: req.auth!.tenantId, userId: req.auth!.userId }, () => ai.generateSop({ business: { name: business?.name, services: business?.services, description: business?.description }, description, activity_log, roles: DEPARTMENTS.map((d) => d.role) }));
     } catch {
       // AI unavailable (no API key / quota) — save a manual draft instead.
       return prisma.sop.create({ data: { businessId, title: description?.slice(0, 60) || "New SOP", description: description ?? "", trigger: "manual", steps: [], source: description ? "taught" : "observed", status: "draft" } });
@@ -75,7 +75,7 @@ export async function sopRoutes(app: FastifyInstance) {
     const auto = sop.automation as any;
     if (!auto?.role) return { ran: false, note: "This SOP is a human checklist — no automation attached." };
     const run = await prisma.sopRun.create({ data: { sopId: id } });
-    const result = await runAgent({ businessId: sop.businessId, role: auto.role, input: auto.input ?? { task: sop.title }, trigger: "manual" });
+    const result = await runAgent({ businessId: sop.businessId, role: auto.role, input: auto.input ?? { task: sop.title }, trigger: "manual", userId: req.auth!.userId });
     await prisma.sopRun.update({ where: { id: run.id }, data: { status: "done", result: { text: result.text } as any, endedAt: new Date() } });
     return { ran: true, result: result.text, awaitingApproval: result.awaitingApproval };
   });

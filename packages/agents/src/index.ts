@@ -10,3 +10,4 @@ export * from "./sandbox";
 export * from "./swarm";
 export * from "./jobqueue";
 export * from "./aiservice";
+export * from "./llm";

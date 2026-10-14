@@ -12,3 +12,4 @@ export * from "./images";
 export * from "./video";
 export * from "./social";
 export * from "./crypto";
+export * from "./netguard";

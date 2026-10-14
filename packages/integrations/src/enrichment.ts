@@ -1,3 +1,4 @@
+import { safeFetch } from "./netguard";
 /**
  * Contact & company enrichment via licensed data providers.
  * Never fabricates data — only returns what providers verify.
@@ -52,8 +53,8 @@ export async function enrichCompany(domain: string): Promise<{ employeeCount?: n
 /** Fetch homepage text for AI website analysis (pain points, current software, quality). */
 export async function fetchWebsiteText(url: string): Promise<string> {
   try {
-    const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(10000) });
-    const html = await res.text();
+    const res = await safeFetch(url, { signal: AbortSignal.timeout(10000) });
+    const html = (await res.text()).slice(0, 2_000_000);
     return html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000);
   } catch { return ""; }
 }

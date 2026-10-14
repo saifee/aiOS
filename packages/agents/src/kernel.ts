@@ -1,11 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma, arr } from "@leadhunter/db";
 import { TOOLS, toolSpecs, ToolCtx } from "./tools";
 import { AGENT_REGISTRY } from "./registry";
 import { searchKnowledge, remember } from "./memory";
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-5";
+import { chat, Turn, withBusinessContext } from "./llm";
 
 /**
  * The AI-OS kernel. Every department agent runs through here:
@@ -15,7 +12,11 @@ const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-5";
  *  4. Persist the run (audit), remember the outcome, return the result
  * Sensitive tools route through the human-approval gate automatically.
  */
-export async function runAgent(params: { businessId: string; role: string; input: Record<string, unknown>; trigger?: string }) {
+export function runAgent(params: { businessId: string; role: string; input: Record<string, unknown>; trigger?: string; userId?: string }) {
+  return withBusinessContext(params.businessId, () => runAgentInner(params), params.userId);
+}
+
+async function runAgentInner(params: { businessId: string; role: string; input: Record<string, unknown>; trigger?: string }) {
   const def = AGENT_REGISTRY[params.role];
   if (!def) throw new Error(`Unknown agent role: ${params.role}`);
 
@@ -49,33 +50,34 @@ ${knowledge.map((k: any) => `- ${k.title || k.source}: ${k.content.slice(0, 300)
 - Hand work to other departments with message_agent. Emit events with emit_event so the org stays in sync.
 - Be truthful and grounded. Never invent client facts, prices, or commitments.`;
 
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: JSON.stringify(params.input) }];
+  const turns: Turn[] = [{ role: "user", text: JSON.stringify(params.input) }];
   const toolLog: any[] = [];
   let tokensIn = 0, tokensOut = 0, finalText = "";
 
-  for (let step = 0; step < 8; step++) {
-    const resp = await anthropic.messages.create({
-      model: MODEL, max_tokens: 1500, system,
-      tools: toolSpecs(def.tools), messages,
-    });
-    tokensIn += resp.usage.input_tokens; tokensOut += resp.usage.output_tokens;
-    finalText = resp.content.filter((c) => c.type === "text").map((c: any) => c.text).join("\n") || finalText;
+  try {
+    for (let step = 0; step < 8; step++) {
+      const resp = await chat({ system, turns, tools: toolSpecs(def.tools), maxTokens: 1500 });
+      tokensIn += resp.tokensIn; tokensOut += resp.tokensOut;
+      finalText = resp.text || finalText;
+      if (resp.calls.length === 0) break;
 
-    const toolUses = resp.content.filter((c) => c.type === "tool_use") as Anthropic.ToolUseBlock[];
-    if (toolUses.length === 0) break;
-
-    messages.push({ role: "assistant", content: resp.content });
-    const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const tu of toolUses) {
-      const tool = TOOLS[tu.name];
-      let out: unknown;
-      try {
-        out = tool ? await tool.handler(tool.schema.parse(tu.input), ctx) : { error: "unknown tool" };
-      } catch (e: any) { out = { error: String(e.message) }; }
-      toolLog.push({ name: tu.name, input: tu.input, result: out });
-      results.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(out).slice(0, 4000) });
+      turns.push({ role: "assistant", text: resp.text, calls: resp.calls });
+      const results: { id: string; name: string; content: string }[] = [];
+      for (const tu of resp.calls) {
+        const tool = TOOLS[tu.name];
+        let out: unknown;
+        try {
+          out = tool ? await tool.handler(tool.schema.parse(tu.input), ctx) : { error: "unknown tool" };
+        } catch (e: any) { out = { error: String(e.message) }; }
+        toolLog.push({ name: tu.name, input: tu.input, result: out });
+        results.push({ id: tu.id, name: tu.name, content: JSON.stringify(out).slice(0, 4000) });
+      }
+      turns.push({ role: "tool", results });
     }
-    messages.push({ role: "user", content: results });
+  } catch (e: any) {
+    // Surface key / provider problems on the run record, then let the caller see the error
+    await prisma.agentRun.update({ where: { id: run.id }, data: { status: "failed", output: { text: String(e.message) } as any, endedAt: new Date() } }).catch(() => {});
+    throw e;
   }
 
   const awaiting = toolLog.some((t) => (t.result as any)?.status === "awaiting_approval");

@@ -6,5 +6,5 @@
 - Raw SQL removed except `findLeadByListValue()` (JSON_CONTAINS). Case-insensitive search is the MySQL default.
 - `packages/db/prisma/schema.sql` is generated (`npm run db:sql`) – idempotent DDL, tested on MariaDB 10.11 (37 tables, 22 foreign keys).
 - Passwords: Node `scrypt` instead of argon2 (no native module).
-- `scripts/package-hostinger.sh` / "Build Hostinger package" workflow -> `kingslee-aios-hostinger.zip`: everything bundled, no `npm install` on the host.
+- `scripts/package-hostinger.sh` / "Build Hostinger package" workflow -> `aios-hostinger.zip`: everything bundled, no `npm install` on the host.
 - Docker: MariaDB 10.11 replaces Postgres. Render: needs an external MySQL.

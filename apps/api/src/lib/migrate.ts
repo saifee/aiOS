@@ -14,6 +14,12 @@ function findSchemaSql(): string | null {
   return null;
 }
 
+const PLAN_ENUM = "ENUM('TRIAL','STARTER','GROWTH','SCALE','ENTERPRISE','FREE')";
+const PATCHES = [
+  `ALTER TABLE \`Tenant\` MODIFY \`plan\` ${PLAN_ENUM} NOT NULL DEFAULT 'FREE'`,
+  `ALTER TABLE \`Subscription\` MODIFY \`plan\` ${PLAN_ENUM} NOT NULL DEFAULT 'TRIAL'`,
+];
+
 /**
  * AUTO_MIGRATE=true: create the tables on boot. Idempotent; failures are logged, never fatal.
  *  - Prisma CLI installed (dev / Docker)  -> `prisma db push` (also adds new columns later)
@@ -33,6 +39,8 @@ export async function runMigrations(log: Log) {
     log.info(`Running database migration from ${file}…`);
     const statements = readFileSync(file, "utf8").split("\n").filter((l) => !l.startsWith("--")).join("\n").split(/;\s*\n/).map((s) => s.trim()).filter(Boolean);
     for (const sql of statements) await prisma.$executeRawUnsafe(sql);
+    // Upgrades from earlier versions: extend the Plan ENUM in place (idempotent; ignored if already applied)
+    for (const sql of PATCHES) await prisma.$executeRawUnsafe(sql).catch(() => {});
     log.info(`Database ready (${statements.length} statements).`);
   } catch (e: any) {
     log.error(`Migration failed (app will still start): ${String(e.stderr || e.message).slice(-600)}`);

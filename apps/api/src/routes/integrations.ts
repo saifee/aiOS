@@ -20,12 +20,18 @@ export async function integrationRoutes(app: FastifyInstance) {
 
   app.put("/businesses/:businessId/integrations/:provider", async (req) => {
     const { businessId, provider } = req.params as any;
+    app.requireRole(req, "OWNER", "ADMIN"); // credentials are admin-only
     await app.requireBusiness(req, businessId);
-    const { credentials, config } = z.object({ credentials: z.record(z.string()).optional(), config: z.any().optional() }).parse(req.body);
-    return prisma.integration.upsert({
+    if (!(PROVIDERS as readonly string[]).includes(provider)) throw Object.assign(new Error("Unknown integration provider"), { statusCode: 400 });
+    const { credentials, config } = z.object({ credentials: z.record(z.string().max(2000)).refine((c) => Object.keys(c).length <= 20).optional(), config: z.record(z.any()).optional() }).strict().parse(req.body);
+    if (config && JSON.stringify(config).length > 20_000) throw Object.assign(new Error("config too large"), { statusCode: 413 });
+    await prisma.integration.upsert({
       where: { businessId_provider: { businessId, provider } },
       update: { status: "connected", ...(credentials && { credentials: { enc: encrypt(JSON.stringify(credentials)) } }), config },
       create: { businessId, provider, status: "connected", credentials: credentials ? { enc: encrypt(JSON.stringify(credentials)) } : undefined, config },
+      select: { id: true },
     });
+    // Never echo stored (encrypted) credentials back to the client.
+    return { provider, status: "connected" };
   });
 }

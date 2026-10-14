@@ -1,29 +1,24 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { complete } from "./llm";
 
 /**
  * Scoring / outreach generation / conversation / SOP generation.
- * Runs in-process with Claude by default (no extra service needed).
+ * Runs in-process through the aiOS model layer (the user's own keys, with failover).
  * If AI_SERVICE_URL is set (e.g. the Python microservice in Docker) it is used instead.
  */
 const REMOTE = process.env.AI_SERVICE_URL && process.env.AI_SERVICE_URL !== "inline" ? process.env.AI_SERVICE_URL : "";
 
 async function remote<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${REMOTE}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(`${REMOTE}${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...(process.env.AI_SERVICE_KEY && { "x-internal-key": process.env.AI_SERVICE_KEY }) }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`AI service ${path} ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
 }
 
-let _client: Anthropic | null = null;
-const claude = () => (_client ??= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
-const MODEL = () => process.env.CLAUDE_MODEL || "claude-sonnet-4-5";
 
 async function completeJson(system: string, user: unknown, maxTokens = 1200): Promise<any> {
-  const msg = await claude().messages.create({
-    model: MODEL(), max_tokens: maxTokens,
+  let text = (await complete({
     system: system + "\nRespond ONLY with valid JSON. No markdown fences, no preamble.",
-    messages: [{ role: "user", content: typeof user === "string" ? user : JSON.stringify(user) }],
-  });
-  let text = msg.content.filter((b) => b.type === "text").map((b: any) => b.text).join("").trim();
+    prompt: typeof user === "string" ? user : JSON.stringify(user), maxTokens, json: true,
+  })).trim();
   text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   return JSON.parse(text);
 }

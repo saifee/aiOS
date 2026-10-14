@@ -3,6 +3,9 @@ on:
   push: { branches: [main] }
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -10,9 +13,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Generate Prisma client
         run: npm -w packages/db run generate
       - name: Build all packages

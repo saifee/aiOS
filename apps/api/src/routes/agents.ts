@@ -21,7 +21,7 @@ export async function agentRoutes(app: FastifyInstance) {
     const { businessId, role } = req.params as any;
     await app.requireBusiness(req, businessId);
     const { input } = z.object({ input: z.record(z.any()) }).parse(req.body);
-    return runAgent({ businessId, role, input, trigger: "manual" });
+    return runAgent({ businessId, role, input, trigger: "manual", userId: req.auth!.userId });
   });
 
   app.get("/businesses/:businessId/agent-runs", async (req) => {

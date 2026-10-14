@@ -16,7 +16,7 @@ export async function commandRoutes(app: FastifyInstance) {
     const { businessId } = req.params as any;
     await app.requireBusiness(req, businessId);
     const { text } = z.object({ text: z.string().min(1) }).parse(req.body);
-    const result = await runAgent({ businessId, role: "ceo_assistant", input: { command: text }, trigger: "command" });
+    const result = await runAgent({ businessId, role: "ceo_assistant", input: { command: text }, trigger: "command", userId: req.auth!.userId });
     return { reply: result.text, actions: result.tools.map((t: any) => t.name), awaitingApproval: result.awaitingApproval, runId: result.runId };
   });
 

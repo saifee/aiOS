@@ -1,4 +1,4 @@
-# Run Kingslee AIOS on Docker Desktop (Windows)
+# Run aiOS on Docker Desktop (Windows)
 
 1. Start Docker Desktop (wait for "Engine running").
 2. Unzip the project, open PowerShell in that folder.
