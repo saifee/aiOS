@@ -5,6 +5,10 @@
 // If the server cannot start (missing build, bad env, native module problem...), instead of the host's
 // opaque "503 Service Unavailable" we keep a tiny responder alive that says so and writes the (redacted)
 // error to startup-error.txt next to this file. Set STARTUP_DEBUG=true to also show it on the page.
+// Normalise env values that hosting panels often capitalise ("TRUE", "PRODUCTION").
+for (const k of ["NODE_ENV", "AUTO_MIGRATE", "LITE_MODE", "TRUST_PROXY", "STARTUP_DEBUG", "SETUP_DEBUG", "CLAUDE_MODEL"]) {
+  if (typeof process.env[k] === "string") process.env[k] = process.env[k].trim().toLowerCase();
+}
 const http = require("http");
 const fs = require("fs");
 const path = require("path");

@@ -166,6 +166,23 @@ describe("headers, CORS and error handling", () => {
   });
 });
 
+describe("environment tolerance", () => {
+  it("TRUST_PROXY with odd capitalisation or garbage never throws", async () => {
+    const { trustProxySetting } = await import("../lib/security");
+    process.env.TRUST_PROXY = "true"; expect(trustProxySetting()).toBe(true);
+    process.env.TRUST_PROXY = "TRUE"; expect(trustProxySetting()).toBe(false); // un-normalised garbage degrades safely instead of crashing Fastify
+    process.env.TRUST_PROXY = "10.0.0.0/8, 127.0.0.1"; expect(trustProxySetting()).toEqual(["10.0.0.0/8", "127.0.0.1"]);
+    delete process.env.TRUST_PROXY;
+  });
+  it("env normaliser lower-cases flags and keeps secrets intact", async () => {
+    process.env.NODE_ENV = " PRODUCTION "; process.env.AUTO_MIGRATE = "TRUE"; process.env.JWT_SECRET = " AbC" + "x".repeat(40) + " ";
+    await import("../lib/env");
+    expect(process.env.NODE_ENV).toBe("production"); expect(process.env.AUTO_MIGRATE).toBe("true");
+    expect(process.env.JWT_SECRET!.startsWith("AbC")).toBe(true); expect(process.env.JWT_SECRET!.endsWith(" ")).toBe(false);
+    process.env.NODE_ENV = "test"; delete process.env.AUTO_MIGRATE; delete process.env.JWT_SECRET;
+  });
+});
+
 describe("secrets configuration", () => {
   it("flags missing, short and default JWT secrets", () => {
     expect(jwtSecretProblem(undefined)).toMatch(/not set/);

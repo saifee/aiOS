@@ -36,7 +36,10 @@ export function trustProxySetting(): boolean | string[] {
   const v = process.env.TRUST_PROXY;
   if (!v || v === "false") return false;
   if (v === "true") return true;
-  return list(v);
+  // Anything else must be a list of proxy IPs/CIDRs; an unparsable value must never crash startup.
+  const l = list(v);
+  const ok = l.every((x) => /^[0-9a-f:.]+(\/\d{1,3})?$/i.test(x) || ["loopback", "linklocal", "uniquelocal"].includes(x));
+  return ok ? l : false;
 }
 
 /** Startup self-check; returns human-readable warnings for the owner (never secrets). */
