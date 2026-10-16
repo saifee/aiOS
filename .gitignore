@@ -32,3 +32,4 @@ __pycache__
 .DS_Store
 *.sqlite
 *.sql.bak
+startup-error.txt

@@ -32,7 +32,7 @@ import { registerInlineProcessors } from "../../workers/src/registry";
 import { INLINE } from "@leadhunter/agents";
 import { runMigrations } from "./lib/migrate";
 
-import { registerSecurity, resolveJwtSecret, allowedOrigins, trustProxySetting, securityWarnings, isProd } from "./lib/security";
+import { jwtSecretProblem, registerSecurity, resolveJwtSecret, allowedOrigins, trustProxySetting, securityWarnings, isProd } from "./lib/security";
 
 const app = Fastify({
   trustProxy: trustProxySetting(),
@@ -45,6 +45,17 @@ const app = Fastify({
 });
 
 async function main() {
+  // Fail closed but stay diagnosable: with a missing/weak JWT secret in production, serve ONLY a
+  // configuration notice (no API, no data) instead of crashing into an opaque host-level 503.
+  const fatal = isProd() ? jwtSecretProblem() : null;
+  if (fatal) {
+    app.log.error(`[security] Refusing to serve: ${fatal}. Set a strong JWT_SECRET (openssl rand -hex 32) in hPanel → Node.js → Environment variables, then restart.`);
+    app.get("/health", async () => ({ ok: false, misconfigured: true }));
+    app.setNotFoundHandler((req, reply) => reply.code(503).type("text/html; charset=utf-8").send(`<!doctype html><meta charset="utf-8"><title>aiOS — configuration needed</title><body style="font-family:system-ui;max-width:640px;margin:12vh auto;padding:0 20px"><h1>Configuration needed</h1><p>The server is running but is intentionally refusing requests because a required security setting is missing or too weak: <b>${fatal}</b>.</p><p>Owner: set a strong <code>JWT_SECRET</code> (at least 32 characters, e.g. <code>openssl rand -hex 32</code>) in the hosting panel's environment variables and restart the app.</p></body>`));
+    const rawPort = process.env.PORT || "4000";
+    await app.listen(/^\d+$/.test(rawPort) ? { port: Number(rawPort), host: "0.0.0.0" } : { path: rawPort });
+    return;
+  }
   const warnings = securityWarnings();
   for (const w of warnings) app.log.warn(`[security] ${w}`);
   registerSecurity(app);
@@ -133,4 +144,8 @@ async function main() {
   const raw = process.env.PORT || "4000";
   await app.listen(/^\d+$/.test(raw) ? { port: Number(raw), host: "0.0.0.0" } : { path: raw });
 }
-main().catch((e) => { app.log.error(e); process.exit(1); });
+main().catch((e) => {
+  app.log.error(e);
+  const fb = (globalThis as any).__aiosFallback; // set by app.js on Hostinger: keep a diagnostic responder instead of an opaque 503
+  if (typeof fb === "function") fb(e); else process.exit(1);
+});

@@ -15,3 +15,6 @@
 
 ## Hostinger-specific limits
 Shared hosting: no root, no custom WAF rules, no process isolation guarantees, OS patching is Hostinger's. The in-process limiter is per Node process. Hostinger's scanner reads `package-lock.json`; it can only show the fixed state after the new lockfile is deployed. Passing local tests does **not** prove the hosted environment is secure.
+
+## If the site shows a bare "503 Service Unavailable"
+That is the host saying the Node process died before it could answer. aiOS keeps a small responder alive for most startup failures: you should see "aiOS could not start" (details in `startup-error.txt` in the app root, or set `STARTUP_DEBUG=true`) or "Configuration needed" (weak/missing `JWT_SECRET`). A plain host 503 means the process did not start at all — read the Node.js app **runtime** log in hPanel (not the build log) and check: the startup file is `app.js`, Node.js 22.x, `apps/api/dist/server.js` exists (build ran), env vars are saved and the app was restarted.
