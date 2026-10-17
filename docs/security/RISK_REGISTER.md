@@ -17,3 +17,4 @@ Likelihood/Impact: L/M/H. Owner for all items: Founder / Head of IT. Review each
 | R-11 | Backups not automated by the app | M | H | Mitigated by procedure | see `BACKUP_AND_RECOVERY.md`; verify hPanel backups & restore test | at deploy |
 | R-12 | In-memory rate limiter resets on restart, per-process | L | L | Accepted | Redis store when available | backlog |
 | R-13 | `npm audit` cannot see zero-days / non-npm components | L | M | Accepted | weekly scans, OSV, Dependabot | ongoing |
+| R-14 | Superadmin account compromise exposes all workspaces, plan allocation and payment settings | L | H | Open | Restrict `SUPERADMIN_EMAILS`, long unique password, audit log on admin actions; MFA planned (R-03) | next release |

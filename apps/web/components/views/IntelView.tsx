@@ -48,7 +48,7 @@ export function IntelView() {
       )}
 
       {exp && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/30" onClick={() => setExp(null)}>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-navy/30" onClick={() => setExp(null)}>
           <div className="card w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-3 text-lg font-semibold">Log expense</h2>
             <select className="input mb-3" value={exp.category} onChange={(e) => setExp({ ...exp, category: e.target.value })}>

@@ -24,7 +24,7 @@ export function CommandView() {
   }
 
   const examples = [
-    "Call all schools in Jeddah with more than 500 students",
+    "Follow up with every lead that went quiet in the last 30 days",
     "Follow up with everyone who received a proposal last week",
     "Show me which projects are least profitable",
     "Launch a LinkedIn campaign targeting hospital administrators",
@@ -34,7 +34,7 @@ export function CommandView() {
     <div className="mx-auto max-w-4xl space-y-6">
 
       {/* Command bar */}
-      <div className="card bg-ink text-white">
+      <div className="card bg-navy text-white">
         <div className="flex gap-2">
           <input
             className="input flex-1 border-white/20 bg-white/10 text-white placeholder:text-white/40"

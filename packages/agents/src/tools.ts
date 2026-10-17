@@ -145,7 +145,7 @@ export const TOOLS: Record<string, Tool> = {
   },
   find_prospects: {
     name: "find_prospects",
-    description: "Search the public web for prospect companies matching a query (optionally by city/country). Returns company names + websites you can then create_lead from. Use this to hunt for schools/companies/tenders that need our services.",
+    description: "Search the public web for prospect companies matching a query (optionally by city/country). Returns company names + websites you can then create_lead from. Use this to find companies or tenders that need our services.",
     schema: z.object({ query: z.string(), city: z.string().optional(), country: z.string().optional(), usePlaces: z.boolean().default(false) }),
     handler: async (i) => {
       const results = i.usePlaces && i.city

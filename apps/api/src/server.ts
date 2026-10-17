@@ -24,6 +24,7 @@ import { knowledgeRoutes } from "./routes/knowledge";
 import { opsRoutes } from "./routes/ops";
 import { biRoutes } from "./routes/bi";
 import { billingRoutes } from "./routes/billing";
+import { adminRoutes } from "./routes/admin";
 import { sopRoutes } from "./routes/sops";
 import { studioRoutes } from "./routes/studio";
 import { meRoutes } from "./routes/me";
@@ -94,6 +95,7 @@ async function main() {
   await app.register(opsRoutes, { prefix: "/v1" });
   await app.register(biRoutes, { prefix: "/v1" });
   await app.register(billingRoutes, { prefix: "/v1" });
+  await app.register(adminRoutes, { prefix: "/v1" });
   await app.register(sopRoutes, { prefix: "/v1" });
   await app.register(studioRoutes, { prefix: "/v1" });
   await app.register(cronRoutes, { prefix: "/v1" });

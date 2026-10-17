@@ -55,7 +55,7 @@ export default function Playbooks() {
             })}
           </div>
           {result && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={() => setResult(null)}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" onClick={() => setResult(null)}>
               <div className="card max-h-[80vh] w-full max-w-2xl overflow-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
                 <h2 className="text-lg font-bold">{result.title}</h2>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">{result.text || "Finished — nothing to report."}</p>

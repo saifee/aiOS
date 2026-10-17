@@ -31,7 +31,7 @@ export async function bridgeTwilioToRealtime(twilioWs: WebSocket) {
         turn_detection: { type: "server_vad" },
         input_audio_transcription: { model: "whisper-1" },
         voice: "alloy",
-        instructions: `You are the receptionist for a software agency. Speak naturally and warmly in the caller's language (Arabic or English — detect from their speech). Services we offer: Website Development, Mobile Apps, School Management System (Spark-ED), AI Automation, Equipment Rental Software, ERP Development, Custom Software, Digital Marketing. Greet, find out who is calling and why. Use tools to look up existing clients, create leads, book meetings, take messages, or transfer urgent calls to a human. Never quote prices — offer to book a call with the team. Keep turns short; this is a phone call.`,
+        instructions: `You are the receptionist for a software agency. Speak naturally and warmly in the caller's language (Arabic or English — detect from their speech). Services we offer: Website Development, Mobile Apps, AI Automation, Equipment Rental Software, ERP Development, Custom Software, Digital Marketing. Greet, find out who is calling and why. Use tools to look up existing clients, create leads, book meetings, take messages, or transfer urgent calls to a human. Never quote prices — offer to book a call with the team. Keep turns short; this is a phone call.`,
         tools: receptionistTools,
       },
     }));

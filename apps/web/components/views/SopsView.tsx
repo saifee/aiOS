@@ -23,7 +23,7 @@ export function SopsView() {
     <div className="mx-auto max-w-4xl space-y-6">
 
       <div className="card">
-        <textarea className="input h-24" placeholder='Describe a process, e.g. "When a school requests a demo, confirm student count, send the Spark-ED deck, and book a call within 24 hours."' value={desc} onChange={(e) => setDesc(e.target.value)} />
+        <textarea className="input h-24" placeholder='Describe a process, e.g. "When a new enquiry arrives, confirm the requirements, send the product overview, and book a call within 24 hours."' value={desc} onChange={(e) => setDesc(e.target.value)} />
         <div className="mt-3 flex gap-2">
           <button className="btn" disabled={busy || !desc.trim()} onClick={() => generate(false)}>{busy ? "Writing…" : "Turn into SOP"}</button>
           <button className="btn-ghost" disabled={busy} onClick={() => generate(true)}>Generate from recent activity</button>

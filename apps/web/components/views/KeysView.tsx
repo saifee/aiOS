@@ -38,7 +38,7 @@ export function KeysView() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="card bg-gradient-to-br from-ink to-[#1B2E6B] text-white">
+      <div className="card bg-gradient-to-br from-navy to-[#1B2E6B] text-white">
         <div className="flex items-start gap-3">
           <Zap className="mt-0.5 h-5 w-5 shrink-0 text-amber" />
           <div className="text-sm leading-relaxed text-white/85">
@@ -98,7 +98,7 @@ export function KeysView() {
       </section>
 
       {form && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={() => setForm(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" onClick={() => setForm(null)}>
           <div className="card w-full max-w-md space-y-3" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <h2 className="flex items-center gap-2 text-lg font-semibold"><KeyRound className="h-5 w-5 text-signal" />Add {prov(form.provider)?.label} key</h2>
             {prov(form.provider)?.keyUrl && <a className="inline-flex items-center gap-1 text-xs text-signal" href={prov(form.provider)!.keyUrl} target="_blank" rel="noreferrer">Get a key from {prov(form.provider)!.label}<ExternalLink className="h-3 w-3" /></a>}

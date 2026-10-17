@@ -1,0 +1,8 @@
+# Upgrade: superadmin console, payment methods, language and dark mode
+
+1. **Database (existing installs):** run the two new `CREATE TABLE IF NOT EXISTS` blocks at the end of `docs/upgrade-existing-database.sql` (tables `Payment` and `PlatformSetting`). New installs get them from `schema.sql`.
+2. **Environment (optional):** `SUPERADMIN_EMAILS=you@example.com`. If unset, the first account created is the superadmin. Values are case-insensitive. Redeploy after changing environment variables.
+3. **Using it:** sign in as the superadmin, open Settings. Two extra tabs appear: *Payment methods* (Stripe keys, webhook secret, price IDs, plus bank transfer or other manual methods with instructions) and *Users & subscriptions* (search users, open a workspace, set plan/status/paid-until, record a manual payment and optionally activate a plan for N months).
+4. **Stripe:** add the webhook endpoint `https://YOUR-DOMAIN/v1/webhooks/stripe` in Stripe (events `checkout.session.completed`, `customer.subscription.*`). Keys saved in Settings override `STRIPE_*` environment variables; `ENCRYPTION_KEY` must be set.
+5. **Language / theme:** buttons at the top right (homepage and app). Choice is stored in the browser and, when signed in, on the account. Arabic switches the page to right-to-left. Navigation, header, homepage, Settings tabs and the admin screens are translated; deeper working screens are still English and can be added in `apps/web/lib/i18n.ts`.
+6. The avatar at the top right shows your initials. If it ever shows a person icon, `/me` failed to load: run the upgrade SQL and check the server log.

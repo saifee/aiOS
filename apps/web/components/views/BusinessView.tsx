@@ -11,7 +11,9 @@ const empty = {
 };
 
 export function BusinessView() {
-  const bid = businessId();
+  // Read after mount: localStorage doesn't exist while the static page is prerendered.
+  const [bid, setBid] = useState<string | null>(null);
+  useEffect(() => setBid(businessId()), []);
   const { data: biz, mutate } = useSWR(bid ? `/businesses/${bid}` : null, fetcher);
   const [f, setF] = useState<any>(empty);
   const [saved, setSaved] = useState(false);
@@ -65,7 +67,7 @@ export function BusinessView() {
         <Field label="Business name" k="name" />
         <Field label="Description" k="description" hint="One paragraph the AI uses to pitch you." />
         <Field label="Services / products" k="services" hint="Comma-separated" />
-        <Field label="Industries you serve" k="industriesServed" hint="e.g. Private Schools, Clinics" />
+        <Field label="Industries you serve" k="industriesServed" hint="e.g. Retail, Logistics, Healthcare" />
       </section>
 
       <section className="card space-y-4">

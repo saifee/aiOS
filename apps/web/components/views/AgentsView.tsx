@@ -84,7 +84,7 @@ export function AgentsView() {
       </section>
 
       {task && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={() => setTask(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" onClick={() => setTask(null)}>
           <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Give {metaFor(task.role, list.find((a) => a.role === task.role)?.displayName).title} a task</h2>

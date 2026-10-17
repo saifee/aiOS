@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "./api";
 
-export type Me = { user: { id: string; email: string; name?: string }; tenant: { id: string; name: string }; plan: string; planName: string; byokOnly: boolean; limits: Record<string, number>; aiKeys: number; aiReady: boolean; role: string };
+export type Me = { user: { id: string; email: string; name?: string }; tenant: { id: string; name: string }; plan: string; planName: string; byokOnly: boolean; limits: Record<string, number>; aiKeys: number; aiReady: boolean; role: string; superadmin?: boolean };
 export const useMe = () => useSWR<Me>("/me", fetcher, { revalidateOnFocus: false });
 
 /** Tab state kept in the URL hash (#studio) so tabs are linkable and survive static export. */

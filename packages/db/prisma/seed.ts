@@ -22,22 +22,22 @@ async function main() {
   const business = await prisma.business.create({
     data: {
       tenantId: tenant.id,
-      name: "Spark-ED School Management System",
-      description: "K-12 school management & LMS for GCC international schools",
-      services: ["School ERP", "LMS", "Parent App", "Fee Management"],
-      industriesServed: ["Private Schools", "International Schools", "Universities", "Training Centers", "Kindergartens"],
-      targetCountries: ["SA", "AE", "QA", "KW", "OM", "BH", "PK"],
-      targetCities: ["Jeddah", "Riyadh", "Dubai", "Doha"],
-      keywords: ["international school", "private school", "school management"],
-      negativeKeywords: ["driving school", "cooking school"],
-      decisionMakerTitles: ["Owner", "Principal", "Vice Principal", "School Director", "IT Manager", "Operations Manager", "Academic Director"],
+      name: "Acme Software Studio",
+      description: "Demo business: custom software and automation for growing companies",
+      services: ["Web development", "Mobile apps", "Automation", "Custom software"],
+      industriesServed: ["Retail", "Logistics", "Healthcare", "Professional services"],
+      targetCountries: ["SA", "AE", "QA", "KW", "OM", "BH"],
+      targetCities: ["Riyadh", "Dubai", "Doha"],
+      keywords: ["business automation", "custom software", "erp"],
+      negativeKeywords: ["free template", "student project"],
+      decisionMakerTitles: ["Owner", "Managing Director", "IT Manager", "Operations Manager"],
       languages: ["en", "ar"],
     },
   });
   await prisma.campaign.create({
     data: {
       businessId: business.id,
-      name: "GCC Schools Q3",
+      name: "Demo outreach",
       channels: ["EMAIL", "WHATSAPP"],
       sources: ["places", "google_search", "directories"],
     },

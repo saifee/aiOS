@@ -76,7 +76,7 @@ export default function Dashboard() {
 
       <div role="tablist" className="mb-5 flex flex-wrap items-center gap-1.5">
         {st.boards.map((b) => (
-          <div key={b.id} className={`flex items-center rounded-full border text-sm font-semibold ${b.id === board.id ? "border-ink bg-ink text-white" : "border-line bg-white text-ink/65 hover:text-ink"}`}>
+          <div key={b.id} className={`flex items-center rounded-full border text-sm font-semibold ${b.id === board.id ? "border-navy bg-navy text-white" : "border-line bg-surface text-ink/65 hover:text-ink"}`}>
             {rename === b.id ? (
               <input autoFocus className="w-32 rounded-full bg-transparent px-3 py-1.5 text-sm outline-none" defaultValue={b.name}
                 onBlur={(e) => { commit({ ...st, boards: st.boards.map((x) => (x.id === b.id ? { ...x, name: e.target.value.trim() || x.name } : x)) }); setRename(null); }}
@@ -90,7 +90,7 @@ export default function Dashboard() {
             )}
           </div>
         ))}
-        {edit && <button className="flex items-center gap-1 rounded-full border border-dashed border-ink/30 px-3 py-1.5 text-sm font-semibold text-ink/60 hover:border-signal hover:text-signal" onClick={() => setGallery(true)}><Plus className="h-4 w-4" />New dashboard</button>}
+        {edit && <button className="flex items-center gap-1 rounded-full border border-dashed border-navy/30 px-3 py-1.5 text-sm font-semibold text-ink/60 hover:border-signal hover:text-signal" onClick={() => setGallery(true)}><Plus className="h-4 w-4" />New dashboard</button>}
       </div>
 
       {edit && <div className="mb-4 rounded-xl border border-signal/30 bg-signalSoft px-4 py-2.5 text-sm text-ink/75">Remix mode: drag widgets (or use the arrows) to reorder, resize them, remove what you don't need, and add more from the gallery. Changes save automatically to your account.</div>}
@@ -102,7 +102,7 @@ export default function Dashboard() {
             <div key={it.id} className={`relative min-w-0 ${spanCls(it.span)} ${edit ? "rounded-2xl outline outline-2 outline-dashed outline-signal/40" : ""} ${drag === it.id ? "opacity-40" : ""}`}
               draggable={edit} onDragStart={() => setDrag(it.id)} onDragEnd={() => setDrag(null)} onDragOver={(e) => edit && e.preventDefault()} onDrop={() => drop(it.id)}>
               {edit && (
-                <div className="absolute -top-3 left-3 right-3 z-10 flex items-center justify-between rounded-full bg-ink px-2 py-1 text-white shadow-lift">
+                <div className="absolute -top-3 left-3 right-3 z-10 flex items-center justify-between rounded-full bg-navy px-2 py-1 text-white shadow-lift">
                   <span className="flex cursor-grab items-center gap-1 text-xs font-semibold"><GripVertical className="h-4 w-4" />{def.title}</span>
                   <span className="flex items-center">
                     <button aria-label="Move earlier" className="p-1 disabled:opacity-30" disabled={idx === 0} onClick={() => move(it.id, -1)}><ChevronLeft className="h-4 w-4" /></button>
@@ -122,8 +122,8 @@ export default function Dashboard() {
       </div>
 
       {gallery && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-ink/40" onClick={() => setGallery(false)}>
-          <aside className="h-full w-full max-w-md overflow-auto bg-white p-5 shadow-lift" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Widget gallery">
+        <div className="fixed inset-0 z-50 flex justify-end bg-navy/40" onClick={() => setGallery(false)}>
+          <aside className="h-full w-full max-w-md overflow-auto bg-surface p-5 shadow-lift" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Widget gallery">
             <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold">Add to “{board.name}”</h2><button aria-label="Close" onClick={() => setGallery(false)}><X /></button></div>
             <div className="space-y-2">
               {WIDGETS.map((w) => (

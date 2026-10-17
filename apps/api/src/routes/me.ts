@@ -3,6 +3,7 @@ import { prisma } from "@leadhunter/db";
 import { z } from "zod";
 import { PLANS, PlanKey, encrypt, encryptionConfigured, assertPublicUrl, allowPrivateAiUrls } from "@leadhunter/integrations";
 import { securityWarnings } from "../lib/security";
+import { isSuperAdmin } from "../lib/superadmin";
 import { PROVIDERS, testKey, invalidateKeys, invalidatePlan } from "@leadhunter/agents";
 
 const encryptionReady = encryptionConfigured;
@@ -20,18 +21,21 @@ export async function meRoutes(app: FastifyInstance) {
   // ── Who am I / what can I do ───────────────────────────────
   app.get("/me", async (req) => {
     const { userId, tenantId } = req.auth!;
-    const [user, tenant, sub, keys] = await Promise.all([
+    // Optional tables are read defensively so an un-upgraded database never blanks the whole profile.
+    const soft = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
+    const [user, tenant, sub, keys, superadmin] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true } }),
       prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, name: true, plan: true } }),
-      prisma.subscription.findUnique({ where: { tenantId } }),
-      prisma.aiKey.count({ where: { tenantId, enabled: true } }),
+      soft(prisma.subscription.findUnique({ where: { tenantId } }), null),
+      soft(prisma.aiKey.count({ where: { tenantId, enabled: true } }), 0),
+      soft(isSuperAdmin(userId), false),
     ]);
     const plan = ((sub?.plan ?? tenant?.plan) ?? "FREE") as PlanKey;
     const p = PLANS[plan];
     return {
       user, tenant: tenant && { id: tenant.id, name: tenant.name },
       plan, planName: p.name, byokOnly: !!p.byokOnly, limits: p.limits,
-      aiKeys: keys, aiReady: keys > 0 || (!p.byokOnly && hasPlatformAi()), role: req.auth!.role,
+      superadmin, aiKeys: keys, aiReady: keys > 0 || (!p.byokOnly && hasPlatformAi()), role: req.auth!.role,
       // Configuration problems are only shown to owners/admins (never secret values).
       securityWarnings: ["OWNER", "ADMIN"].includes(req.auth!.role) ? securityWarnings() : [],
     };

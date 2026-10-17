@@ -40,11 +40,11 @@ function CommandBar() {
     setBusy(false);
   }
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-ink via-[#17306E] to-[#4B3AA8] p-5 text-white shadow-card">
+    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-[#17306E] to-[#4B3AA8] p-5 text-white shadow-card">
       <h3 className="flex items-center gap-2 text-sm font-bold"><Terminal className="h-4 w-4 text-[#9DB0FF]" />Tell your company what to do</h3>
       <div className="mt-3 flex gap-2">
-        <input className="h-11 flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/45 focus:border-white/60 focus:outline-none" placeholder="e.g. Call every school in Jeddah with 500+ students" value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()} />
-        <button className="btn h-11 bg-white !text-ink" onClick={() => run()} disabled={busy}>{busy ? "Working…" : "Run"}</button>
+        <input className="h-11 flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/45 focus:border-white/60 focus:outline-none" placeholder="e.g. Follow up with every lead that went quiet this month" value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()} />
+        <button className="btn h-11 bg-white !text-navy" onClick={() => run()} disabled={busy}>{busy ? "Working…" : "Run"}</button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">{ideas.map((i) => <button key={i} className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/70 hover:bg-white/10" onClick={() => run(i)}>{i}</button>)}</div>
       {me && !me.aiReady && <p className="mt-3 text-xs text-amber">No AI key yet. <Link href="/settings#keys" className="underline">Add one</Link> to run commands.</p>}

@@ -10,7 +10,7 @@ export function StudioView() {
     <div className="space-y-6">
       <div className="flex gap-2">
         {(["build", "create", "publish"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-lg px-4 py-2 text-sm ${tab === t ? "bg-ink text-white" : "btn-ghost"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`rounded-lg px-4 py-2 text-sm ${tab === t ? "bg-navy text-white" : "btn-ghost"}`}>
             {t === "build" ? "Dev Swarm" : t === "create" ? "Creative" : "Social"}
           </button>
         ))}
@@ -73,7 +73,7 @@ function Creative() {
   return (
     <div className="space-y-4">
       <div className="card flex gap-2">
-        <input className="input" placeholder="Describe an image — 'Spark-ED launch banner, GCC school theme, teal accents'" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        <input className="input" placeholder="Describe an image — 'Product launch banner, clean modern theme, teal accents'" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
         <button className="btn whitespace-nowrap" disabled={busy || prompt.length < 3} onClick={gen}>{busy ? "Generating…" : "Generate"}</button>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

@@ -18,7 +18,7 @@
 2. **Model routing by task**: cheap/free models for scoring and drafting, a stronger model for planning. Needs a per-agent "preferred model" field next to each key.
 3. **Learned rules**: when you edit an agent's draft, store the correction as a rule and inject it into that agent's prompt (chief-of-staff "calibration").
 4. **Voice-first mobile**: hold a button, speak an order, get the briefing read back in Arabic or English.
-5. **Team bundles**: one-click "Clinic", "School vendor", "Real estate" workspaces that pre-fill business profile, recipes and dashboard.
+5. **Team bundles**: one-click "Clinic", "Retail", "Real estate" workspaces that pre-fill business profile, recipes and dashboard.
 6. **Public booking and chat widget** for customers' websites, answered by the Receptionist.
 7. **Agent marketplace**: share and install custom agents and recipes between workspaces.
 8. **Prompt A/B testing**: test two outreach prompts on live traffic and keep the winner.

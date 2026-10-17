@@ -43,7 +43,7 @@ export function CampaignsView() {
       </div>
 
       {show && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink/30" onClick={() => setShow(false)}>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-navy/30" onClick={() => setShow(false)}>
           <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h2 className="mb-4 text-lg font-semibold">New hunt</h2>
             <input className="input mb-3" placeholder="Campaign name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

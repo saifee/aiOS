@@ -1,7 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
 import { z } from "zod";
-import { PLANS, PlanKey, createCheckout, createPortal, ensureCustomer } from "@leadhunter/integrations";
+import { PLANS, PlanKey, createCheckout, createPortal, ensureCustomer, priceIdFor, stripeConfigured } from "@leadhunter/integrations";
+import { loadPaymentConfig, publicView } from "../lib/payments";
 
 /** Subscription billing + usage. Checkout/portal via Stripe; plan drives limits. */
 export async function billingRoutes(app: FastifyInstance) {
@@ -20,10 +21,17 @@ export async function billingRoutes(app: FastifyInstance) {
     return { plan, status: sub?.status ?? "trialing", limits: PLANS[plan].limits, usage: used, currentPeriodEnd: sub?.currentPeriodEnd };
   });
 
+  // Which ways of paying are available (Stripe and/or manual instructions). Never includes secrets.
+  app.get("/billing/methods", async () => {
+    const v = publicView(await loadPaymentConfig());
+    return { ...v, stripe: v.stripe || stripeConfigured() };
+  });
+
   app.post("/billing/checkout", async (req, reply) => {
     const { plan } = z.object({ plan: z.enum(["STARTER", "GROWTH", "SCALE"]) }).parse(req.body);
-    const priceId = PLANS[plan].priceId;
-    if (!priceId) return reply.code(400).send({ error: `No Stripe price configured for ${plan} (set STRIPE_PRICE_${plan}).` });
+    await loadPaymentConfig();
+    const priceId = priceIdFor(plan);
+    if (!priceId) return reply.code(400).send({ error: `No Stripe price configured for ${plan} (add it under Settings → Payment methods).` });
     const tenant = await prisma.tenant.findUnique({ where: { id: req.auth!.tenantId } });
     const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
     const customerId = await ensureCustomer(tenant?.stripeCustomerId, user!.email, tenant?.name);
@@ -33,6 +41,7 @@ export async function billingRoutes(app: FastifyInstance) {
   });
 
   app.post("/billing/portal", async (req, reply) => {
+    await loadPaymentConfig();
     const tenant = await prisma.tenant.findUnique({ where: { id: req.auth!.tenantId } });
     if (!tenant?.stripeCustomerId) return reply.code(400).send({ error: "No billing account yet — subscribe first." });
     const session = await createPortal(tenant.stripeCustomerId, `${process.env.APP_URL}/billing`);

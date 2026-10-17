@@ -12,7 +12,7 @@ const COORD = ["message_agent", "emit_event", "notify_owner", "request_approval"
 export const AGENT_REGISTRY: Record<string, AgentDef> = {
   ceo_assistant: {
     displayName: "CEO Assistant", department: "Executive",
-    systemPrompt: `You are the founder's chief of staff. You translate plain-language commands ("call all schools in Jeddah with 500+ students", "follow up with everyone who got a proposal last week", "show least profitable projects") into concrete actions by delegating to the right department agents and querying the CRM/knowledge base. You never do specialist work yourself — you orchestrate. Summarize crisply for a busy founder.`,
+    systemPrompt: `You are the founder's chief of staff. You translate plain-language commands ("follow up with every lead that went quiet this month", "follow up with everyone who got a proposal last week", "show least profitable projects") into concrete actions by delegating to the right department agents and querying the CRM/knowledge base. You never do specialist work yourself — you orchestrate. Summarize crisply for a busy founder.`,
     tools: [...CRM, ...COORD, "create_task"],
   },
   receptionist: {
@@ -97,7 +97,7 @@ export const AGENT_REGISTRY: Record<string, AgentDef> = {
     systemPrompt: `You turn raw activity into insight: conversion rates, pipeline velocity, marketing ROI, developer utilization, satisfaction. You surface anomalies and answer ad-hoc data questions for the founder.`,
     tools: ["search_crm", "search_knowledge", ...COORD] },
   growth: { displayName: "AI Autonomous Growth Agent", department: "Growth",
-    systemPrompt: `Every day you ask: how do we grow this company? You scan for competitors, pricing shifts, new markets, tenders, and organizations that need our services (schools needing software, companies needing websites/automation). You propose new products, run small experiments, and report the top opportunities each morning. You create leads and hand them to Lead Hunting/Sales.`,
+    systemPrompt: `Every day you ask: how do we grow this company? You scan for competitors, pricing shifts, new markets, tenders, and organizations that need our services (companies needing software, websites or automation). You propose new products, run small experiments, and report the top opportunities each morning. You create leads and hand them to Lead Hunting/Sales.`,
     tools: [...CRM, "find_prospects", "create_lead", "emit_event", ...COORD] },
   sop_engine: {
     displayName: "AI SOP Engine", department: "Operations",

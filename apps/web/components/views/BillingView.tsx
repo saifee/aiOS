@@ -1,11 +1,14 @@
 "use client";
 import { toast } from "@/lib/toast";
 import useSWR from "swr";
-import { fetcher, api, businessId } from "@/lib/api";
+import { fetcher, api } from "@/lib/api";
+import { usePrefs } from "@/components/Prefs";
 
 export function BillingView() {
   const { data: sub, mutate } = useSWR("/billing/subscription", fetcher);
   const { data: plans } = useSWR("/billing/plans", fetcher);
+  const { data: methods } = useSWR("/billing/methods", fetcher);
+  const { t } = usePrefs();
 
   async function upgrade(plan: string) {
     try { const res = await api("/billing/checkout", { method: "POST", body: JSON.stringify({ plan }) }); if (res.url) window.location.href = res.url; }
@@ -66,12 +69,19 @@ export function BillingView() {
               <li>{p.limits.calls.toLocaleString()} AI calls/mo</li>
               <li>{p.limits.seats} seats · {p.limits.agents} agents</li>
             </ul>
-            <button className="btn mt-5 w-full justify-center" disabled={sub?.plan === p.key} onClick={() => upgrade(p.key)}>
+            <button className="btn mt-5 w-full justify-center" disabled={sub?.plan === p.key || methods?.stripe === false} onClick={() => upgrade(p.key)}>
               {sub?.plan === p.key ? "Current plan" : "Upgrade"}
             </button>
           </div>
         ))}
       </div>
+      {methods?.manual?.length > 0 && (
+        <div className="card space-y-3">
+          <h3 className="font-bold">{t("Pay another way")}</h3>
+          {methods.manual.map((m: any) => (
+            <div key={m.id} className="rounded-xl border border-line p-3 text-sm"><div className="font-semibold">{m.label}</div>{m.instructions && <p className="mt-1 whitespace-pre-line text-ink/70">{m.instructions}</p>}</div>))}
+        </div>
+      )}
       <p className="text-xs text-ink/40">Enterprise? <button className="text-signal" onClick={portal}>Talk to us</button> for custom limits and SLAs.</p>
     </div>
   );

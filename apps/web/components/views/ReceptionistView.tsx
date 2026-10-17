@@ -13,7 +13,7 @@ export function ReceptionistView() {
       <div className="card bg-signalSoft">
         <p className="text-sm text-ink/70">
           <span className="font-semibold">Setup:</span> point your Twilio number's Voice webhook to
-          <code className="mx-1 rounded bg-white px-1">POST /v1/voice/incoming?businessId={bid ?? "…"}</code>
+          <code className="mx-1 rounded bg-surface px-1">POST /v1/voice/incoming?businessId={bid ?? "…"}</code>
           and run the voice bridge service. The receptionist connects live audio to the OpenAI Realtime API.
         </p>
       </div>

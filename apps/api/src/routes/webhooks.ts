@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma, arr, findLeadByListValue } from "@leadhunter/db";
 import { queues } from "../lib/queues";
+import { loadPaymentConfig } from "../lib/payments";
 import { verifyWebhook, PLANS } from "@leadhunter/integrations";
 import { z } from "zod";
 import { timingSafeEqual } from "crypto";
@@ -105,6 +106,7 @@ export async function webhookRoutes(app: FastifyInstance) {
     let event: any;
     // Signature must be verified against the exact raw bytes — never a re-serialised body.
     if (!(req as any).rawBody || typeof req.headers["stripe-signature"] !== "string") return reply.code(400).send({ error: "Missing signature" });
+    await loadPaymentConfig().catch(() => {});
     try { event = verifyWebhook((req as any).rawBody, req.headers["stripe-signature"] as string); }
     catch (e: any) { req.log.warn({ msg: e?.message }, "stripe webhook rejected"); return reply.code(400).send({ error: "Invalid signature" }); }
     const obj = event.data.object as any;

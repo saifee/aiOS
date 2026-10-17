@@ -2,11 +2,17 @@ import Stripe from "stripe";
 
 /** Stripe client (lazy so the app boots without a key in dev). */
 let _stripe: Stripe | null = null;
+let _stripeKey = "";
+/** Settings saved by the superadmin (Settings → Payment methods). They take precedence over environment variables. */
+type StripeOverride = { secretKey?: string; webhookSecret?: string; prices?: Partial<Record<"STARTER" | "GROWTH" | "SCALE", string>> };
+let override: StripeOverride = {};
+export function configureStripe(cfg: StripeOverride | null) { override = cfg ?? {}; _stripe = null; _stripeKey = ""; }
+export function priceIdFor(plan: "STARTER" | "GROWTH" | "SCALE"): string | undefined { return override.prices?.[plan] || PLANS[plan].priceId; }
+export function stripeConfigured(): boolean { return !!(override.secretKey || process.env.STRIPE_SECRET_KEY); }
 export function stripe(): Stripe {
-  if (!_stripe) {
-    if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY not set");
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
-  }
+  const key = override.secretKey || process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Stripe is not configured. Add the secret key in Settings → Payment methods.");
+  if (!_stripe || _stripeKey !== key) { _stripe = new Stripe(key, { apiVersion: "2024-06-20" }); _stripeKey = key; }
   return _stripe;
 }
 
@@ -39,5 +45,7 @@ export async function ensureCustomer(existingId: string | null | undefined, emai
 }
 
 export function verifyWebhook(payload: string | Buffer, sig: string) {
-  return stripe().webhooks.constructEvent(payload, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  const secret = override.webhookSecret || process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) throw new Error("Stripe webhook secret is not configured");
+  return stripe().webhooks.constructEvent(payload, sig, secret);
 }

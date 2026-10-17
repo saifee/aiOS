@@ -21,6 +21,7 @@ model Tenant {
   businesses       Business[]
   auditLogs        AuditLog[]
   aiKeys           AiKey[]
+  payments         Payment[]
 }
 
 enum Plan {
@@ -727,4 +728,30 @@ model Decision {
   createdAt  DateTime @default(now())
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   @@index([businessId, createdAt])
+}
+
+// ────────────── Platform administration ──────────────
+
+// Manual (offline) or recorded payments, entered by the platform superadmin.
+model Payment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  amountCents Int
+  currency    String   @default("USD")
+  method      String   @default("manual") // manual | bank_transfer | cash | stripe | other
+  reference   String?
+  note        String?
+  plan        String?  // plan this payment activated, if any
+  months      Int?     // months of access granted, if any
+  recordedBy  String   // userId of the superadmin
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId, createdAt])
+}
+
+// Platform-wide key/value settings (payment methods). Secrets inside are encrypted.
+model PlatformSetting {
+  key       String   @id
+  value     Json?
+  updatedAt DateTime @updatedAt
 }

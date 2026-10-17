@@ -48,8 +48,8 @@ function LeadDrawer({ lead, onClose }: { lead: any; onClose: () => void }) {
   async function move(stage: string) { await api(`/leads/${lead.id}/stage`, { method: "PATCH", body: JSON.stringify({ stage }) }); onClose(); }
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-ink/30" onClick={onClose}>
-      <div className="h-full w-full max-w-xl overflow-y-auto bg-white p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-navy/30" onClick={onClose}>
+      <div className="h-full w-full max-w-xl overflow-y-auto bg-surface p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-xl font-semibold">{lead.companyName}</h2>

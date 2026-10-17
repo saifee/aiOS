@@ -629,3 +629,28 @@ CREATE TABLE IF NOT EXISTS `Call` (
   INDEX `Call_businessId_startedAt_idx` (`businessId`, `startedAt`),
   CONSTRAINT `Call_leadId_fkey` FOREIGN KEY (`leadId`) REFERENCES `Lead` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Superadmin: manual payments + platform settings (payment methods)
+CREATE TABLE IF NOT EXISTS `Payment` (
+  `id` VARCHAR(191) NOT NULL,
+  `tenantId` VARCHAR(191) NOT NULL,
+  `amountCents` INTEGER NOT NULL,
+  `currency` VARCHAR(191) NOT NULL DEFAULT 'USD',
+  `method` VARCHAR(191) NOT NULL DEFAULT 'manual',
+  `reference` VARCHAR(191) NULL,
+  `note` VARCHAR(191) NULL,
+  `plan` VARCHAR(191) NULL,
+  `months` INTEGER NULL,
+  `recordedBy` VARCHAR(191) NOT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  INDEX `Payment_tenantId_createdAt_idx` (`tenantId`, `createdAt`),
+  CONSTRAINT `Payment_tenantId_fkey` FOREIGN KEY (`tenantId`) REFERENCES `Tenant` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `PlatformSetting` (
+  `key` VARCHAR(191) NOT NULL,
+  `value` JSON NULL,
+  `updatedAt` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`key`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

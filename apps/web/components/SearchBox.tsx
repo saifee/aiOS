@@ -52,7 +52,7 @@ export function SearchBox() {
 
   return (
     <div ref={box} className="relative w-full max-w-xl">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/45" />
+      <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/45" />
       <input ref={input} value={q} role="combobox" aria-expanded={open} aria-controls="aios-search" aria-label="Search aiOS"
         onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
@@ -62,10 +62,10 @@ export function SearchBox() {
           else if (e.key === "Escape") { setOpen(false); input.current?.blur(); }
         }}
         placeholder="Search pages, agents, leads — or ask aiOS anything"
-        className="h-10 w-full rounded-full border border-line bg-white pl-10 pr-16 text-sm shadow-sm placeholder:text-ink/40 focus:border-signal focus:outline-none focus:ring-2 focus:ring-signal/20" />
-      <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-paper px-1.5 py-0.5 text-[10px] font-medium text-ink/50 sm:block">Ctrl K</kbd>
+        className="h-10 w-full rounded-full border border-line bg-surface ps-10 pe-16 text-sm shadow-sm placeholder:text-ink/40 focus:border-signal focus:outline-none focus:ring-2 focus:ring-signal/20" />
+      <kbd className="pointer-events-none absolute end-3 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-paper px-1.5 py-0.5 text-[10px] font-medium text-ink/50 sm:block">Ctrl K</kbd>
       {open && items.length > 0 && (
-        <div id="aios-search" role="listbox" className="absolute left-0 right-0 top-12 z-50 max-h-[26rem] overflow-auto rounded-2xl border border-line bg-white p-2 shadow-lift">
+        <div id="aios-search" role="listbox" className="absolute inset-x-0 top-12 z-50 max-h-[26rem] overflow-auto rounded-2xl border border-line bg-surface p-2 shadow-lift">
           {Object.entries(groups).map(([g, list]) => (
             <div key={g} className="mb-1">
               <div className="px-3 py-1 text-xs font-semibold text-ink/45">{g}</div>

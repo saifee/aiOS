@@ -25,7 +25,7 @@ export default function Login() {
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="hidden flex-col justify-between bg-gradient-to-br from-ink via-[#14296B] to-[#4B3AA8] p-12 text-white lg:flex">
+      <section className="hidden flex-col justify-between bg-gradient-to-br from-navy via-[#14296B] to-[#4B3AA8] p-12 text-white lg:flex">
         <Link href="/" className="flex items-center gap-2"><LogoMark /><Wordmark light /></Link>
         <div>
           <h1 className="max-w-md text-4xl font-extrabold leading-tight">A full team, ready when you are.</h1>

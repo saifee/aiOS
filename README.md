@@ -1,10 +1,10 @@
 # aiOS
 
-**Hire. Delegate. Grow.** aiOS is an AI operating system for your company. Every department — reception, sales, delivery, engineering, finance, marketing, growth — is an autonomous AI employee sharing one CRM, one Knowledge Brain, one calendar, one phone system, and one event bus. You open the Command Center each morning, see what ran overnight, approve what needs you, and type commands like *"call all schools in Jeddah with 500+ students."*
+**Hire. Delegate. Grow.** aiOS is an AI operating system for your company. Every department — reception, sales, delivery, engineering, finance, marketing, growth — is an autonomous AI employee sharing one CRM, one Knowledge Brain, one calendar, one phone system, and one event bus. You open the Command Center each morning, see what ran overnight, approve what needs you, and type commands like *"follow up with every lead that went quiet this month"*
 
 **Lead engine core.** aiOS discovers leads for your business, verifies decision-maker contacts, scores fit, sends personalized outreach (email + WhatsApp), follows up on schedule, holds the conversation when leads reply, books meetings — and only interrupts you when there is a genuine opportunity.
 
-Multi-tenant SaaS: any business (Spark-ED selling to GCC schools, an equipment-rental company in Riyadh, a clinic-software vendor…) configures its profile once and the agent hunts 24/7.
+Multi-tenant SaaS: any business (a software studio, an equipment-rental company in Riyadh, a clinic-software vendor…) configures its profile once and the agent hunts 24/7.
 
 ## Architecture
 
