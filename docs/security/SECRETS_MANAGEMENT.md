@@ -2,7 +2,7 @@
 
 ## Rules
 1. Real secrets live only in the hosting panel's environment variables (Hostinger hPanel → Node.js → Environment variables). Never in git, tickets, chat or screenshots.
-2. Templates (`.env.example`, `.env.hostinger`, `.env.render`, `.env.docker`) contain placeholders only. `.gitignore` excludes `.env`, `.env.*` (except those templates), keys and certificates. CI runs gitleaks over the full history.
+2. Templates (`.env.example`, `.env.render`, `.env.docker`) contain placeholders only. `.gitignore` excludes `.env`, `.env.*` (except those templates), keys and certificates. CI runs gitleaks over the full history.
 3. Generate with `openssl rand -hex 32`. `JWT_SECRET` ≥ 32 chars (production refuses to boot otherwise). `ENCRYPTION_KEY` = exactly 64 hex chars, not all zeros (encryption throws otherwise — there is no silent default).
 4. Logs redact `Authorization`, cookies, `x-cron-key`, `x-webhook-secret`, `x-setup-token` and `?key=` / `?token=` query values.
 5. User BYOK AI keys and integration credentials are AES-256-GCM encrypted at rest; only the last 4 characters are shown in the UI.

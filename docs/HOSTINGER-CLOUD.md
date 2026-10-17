@@ -18,7 +18,7 @@ Create a database + user. Note the three names (look like `u123456789_aios`). Ho
 - Node version 20 or 22
 - Upload `aios-hostinger.zip` (File Manager → upload → extract into the app folder, or the upload option in the Node.js screen)
 - Entry file: `app.js`      Build command: *(leave empty)*      Install: *(skip / none)*
-- Environment variables: everything in `.env.hostinger`, filled in
+- Environment variables: the variables listed in `docs/HOSTINGER-SETUP.md`, filled in in hPanel (no env file is shipped in the repo, so nothing can override your production values)
 - Start / Restart
 
 ## 4. First start

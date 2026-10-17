@@ -1,117 +1,43 @@
-# Render Blueprint for aiOS — deploys the whole stack from one file.
-# New → Blueprint → connect this repo → Render reads this file.
-# Docker runtime reuses the Dockerfiles already in the repo.
+// Root startup file for Hostinger Node.js app (Passenger).
+// Set this file as the "Application startup file". It launches the built API
+// server, which also serves the exported frontend on the same domain.
+//
+// If the server cannot start (missing build, bad env, native module problem...), instead of the host's
+// opaque "503 Service Unavailable" we keep a tiny responder alive that says so and writes the (redacted)
+// error to startup-error.txt next to this file. Set STARTUP_DEBUG=true to also show it on the page.
+// Normalise env values that hosting panels often capitalise ("TRUE", "PRODUCTION").
+for (const k of ["NODE_ENV", "AUTO_MIGRATE", "LITE_MODE", "TRUST_PROXY", "STARTUP_DEBUG", "SETUP_DEBUG", "CLAUDE_MODEL"]) {
+  if (typeof process.env[k] === "string") process.env[k] = process.env[k].trim().toLowerCase();
+}
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
-# NOTE: Render's managed database is Postgres-only; this app now uses MySQL/MariaDB.
-# Create the database elsewhere (Hostinger remote MySQL, Aiven, TiDB Cloud, ...) and
-# set DATABASE_URL (mysql://user:pass@host:3306/db) in the Render dashboard.
+function redact(msg) {
+  return String(msg).replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"']+/gi, "<url>").replace(/\s+/g, " ").slice(0, 600);
+}
 
-services:
-  # ── Redis (BullMQ queues) — "Key Value" in the dashboard ──
-  - type: redis
-    name: leadhunter-redis
-    plan: free                    # 25MB, fine to start; upgrade for production
-    ipAllowList: []               # empty = internal connections only
+let started = false;
+globalThis.__aiosFallback = function fallback(err) {
+  if (started) return;
+  started = true;
+  const msg = redact((err && err.message) || err);
+  const code = err && err.code ? ` [${err.code}]` : "";
+  console.error("[aiOS] STARTUP FAILED:", msg + code);
+  try { fs.writeFileSync(path.join(__dirname, "startup-error.txt"), `${new Date().toISOString()}\nnode ${process.version}\n${msg}${code}\n`); } catch (_) {}
+  const detail = process.env.STARTUP_DEBUG === "true" ? `<p><code>${msg.replace(/[<>&]/g, "")}${code}</code></p>` : "<p>Details are in <code>startup-error.txt</code> (File Manager, app root) and the Node.js app log. Set <code>STARTUP_DEBUG=true</code> to show them here temporarily.</p>";
+  const raw = process.env.PORT || "4000";
+  try {
+    http.createServer((req, res) => {
+      res.writeHead(503, { "content-type": req.url === "/health" ? "application/json" : "text/html; charset=utf-8", "cache-control": "no-store" });
+      res.end(req.url === "/health" ? '{"ok":false,"startupFailed":true}' : `<!doctype html><meta charset="utf-8"><title>aiOS — startup failed</title><body style="font-family:system-ui;max-width:640px;margin:12vh auto;padding:0 20px"><h1>aiOS could not start</h1><p>The application process is running, but the server failed during startup.</p>${detail}</body>`);
+    }).listen(/^\d+$/.test(raw) ? { port: Number(raw), host: "0.0.0.0" } : { path: raw });
+  } catch (e) { console.error("[aiOS] fallback listener failed:", e && e.message); process.exit(1); }
+};
 
-  # ── API (public) ──
-  - type: web
-    name: leadhunter-api
-    runtime: docker
-    dockerfilePath: ./infra/docker/api.Dockerfile
-    dockerContext: .
-    plan: starter
-    healthCheckPath: /health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false               # mysql://user:pass@host:3306/db
-      - key: REDIS_URL
-        fromService: { type: redis, name: leadhunter-redis, property: connectionString }
-      - key: AI_SERVICE_URL
-        value: http://leadhunter-ai:8000     # Render private network: http://<service>:<port>
-      - key: JWT_SECRET
-        generateValue: true
-      - key: ENCRYPTION_KEY
-        sync: false               # set to `openssl rand -hex 32` (64 hex chars)
-      - key: APP_URL
-        fromService: { type: web, name: leadhunter-web, property: url }
-      # Provider keys — fill these in the Render dashboard (sync:false = prompt, never in git)
-      - { key: ANTHROPIC_API_KEY, sync: false }
-      - { key: OPENAI_API_KEY, sync: false }
-      - { key: GEMINI_API_KEY, sync: false }
-      - { key: PERPLEXITY_API_KEY, sync: false }
-      - { key: SENDGRID_API_KEY, sync: false }
-      - { key: WHATSAPP_CLOUD_TOKEN, sync: false }
-      - { key: WHATSAPP_PHONE_NUMBER_ID, sync: false }
-      - { key: WHATSAPP_VERIFY_TOKEN, sync: false }
-      - { key: HUNTER_API_KEY, sync: false }
-      - { key: APOLLO_API_KEY, sync: false }
-      - { key: GOOGLE_PLACES_API_KEY, sync: false }
-      - { key: STRIPE_SECRET_KEY, sync: false }
-      - { key: STRIPE_WEBHOOK_SECRET, sync: false }
-      - { key: GITHUB_TOKEN, sync: false }
-      - { key: TWILIO_ACCOUNT_SID, sync: false }
-      - { key: TWILIO_AUTH_TOKEN, sync: false }
-      - { key: DEFAULT_FROM_EMAIL, sync: false }
-
-  # ── Workers (background — the 24/7 autonomous engine) ──
-  - type: worker
-    name: leadhunter-workers
-    runtime: docker
-    dockerfilePath: ./infra/docker/workers.Dockerfile
-    dockerContext: .
-    plan: starter
-    envVars:
-      - key: DATABASE_URL
-        sync: false               # mysql://user:pass@host:3306/db
-      - key: REDIS_URL
-        fromService: { type: redis, name: leadhunter-redis, property: connectionString }
-      - key: AI_SERVICE_URL
-        value: http://leadhunter-ai:8000
-      - { key: ANTHROPIC_API_KEY, sync: false }
-      - { key: OPENAI_API_KEY, sync: false }
-      - { key: GEMINI_API_KEY, sync: false }
-      - { key: PERPLEXITY_API_KEY, sync: false }
-      - { key: SENDGRID_API_KEY, sync: false }
-      - { key: GITHUB_TOKEN, sync: false }
-      - { key: ENCRYPTION_KEY, sync: false }
-      - { key: APP_URL, fromService: { type: web, name: leadhunter-web, property: url } }
-
-  # ── AI microservice (private — only reachable inside the network) ──
-  - type: pserv
-    name: leadhunter-ai
-    runtime: docker
-    dockerfilePath: ./services/ai/Dockerfile
-    dockerContext: ./services/ai
-    plan: starter
-    envVars:
-      - { key: ANTHROPIC_API_KEY, sync: false }
-      - { key: OPENAI_API_KEY, sync: false }
-      - { key: CLAUDE_MODEL, value: claude-sonnet-4-5 }
-
-  # ── Web (public Next.js dashboard) ──
-  - type: web
-    name: leadhunter-web
-    runtime: docker
-    dockerfilePath: ./infra/docker/web.Dockerfile
-    dockerContext: .
-    plan: starter
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        fromService: { type: web, name: leadhunter-api, property: url }
-
-  # ── Voice bridge (public wss for Twilio) — only if using the receptionist ──
-  - type: web
-    name: leadhunter-voice
-    runtime: docker
-    dockerfilePath: ./services/voice/Dockerfile
-    dockerContext: .
-    plan: starter
-    envVars:
-      - key: DATABASE_URL
-        sync: false               # mysql://user:pass@host:3306/db
-      - { key: OPENAI_API_KEY, sync: false }
-      - { key: TWILIO_ACCOUNT_SID, sync: false }
-      - { key: TWILIO_AUTH_TOKEN, sync: false }
-      - { key: ANTHROPIC_API_KEY, sync: false }
+try {
+  require("./apps/api/dist/server.js");
+} catch (e) {
+  globalThis.__aiosFallback(e);
+}
+process.on("uncaughtException", (e) => { if (!started) globalThis.__aiosFallback(e); else console.error(e); });
