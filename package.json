@@ -1,35 +1,43 @@
-{
-  "name": "leadhunter",
-  "private": true,
-  "version": "1.0.0",
-  "description": "aiOS \u2014 the AI operating system for your company: every department is an autonomous AI employee on a shared CRM, knowledge base, event bus, and phone system.",
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "services/voice"
-  ],
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
-    "db:migrate": "npm -w packages/db run migrate",
-    "db:seed": "npm -w packages/db run seed",
-    "docker:up": "docker compose up -d --build",
-    "typecheck": "turbo run typecheck",
-    "db:sql": "node scripts/gen-mysql-sql.mjs",
-    "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "audit:all": "npm audit --audit-level=high",
-    "sbom": "npx --yes @cyclonedx/cyclonedx-npm@latest --omit dev --output-format JSON --output-file docs/security/sbom.cdx.json"
-  },
-  "devDependencies": {
-    "@prisma/prisma-schema-wasm": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
-    "esbuild": "^0.28.2",
-    "turbo": "^2.0.0",
-    "typescript": "^5.5.0"
-  },
-  "packageManager": "npm@10.0.0",
-  "engines": {
-    "node": ">=20.19"
-  }
-}
+# Copy this file to ".env" (see docs/DOCKER.md). Only ANTHROPIC_API_KEY is required to start.
+NODE_ENV=production
+# (DATABASE_URL and REDIS_URL are set by docker-compose.yml — nothing to do)
+APP_URL=http://localhost:4000
+API_URL=http://localhost:4000
+# generate your own: https://generate-random.org  (any long random text for JWT_SECRET)
+JWT_SECRET=REPLACE_WITH_ANY_LONG_RANDOM_TEXT
+# must be exactly 64 hex characters (0-9 a-f)
+ENCRYPTION_KEY=REPLACE_WITH_64_HEX_CHARACTERS
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+DEFAULT_FROM_EMAIL=hello@yourdomain.com
+
+# ── Security hardening (see docs/security/SECURE_DEPLOYMENT.md) ─────
+# Set to true when a trusted reverse proxy (Hostinger/LiteSpeed, Cloudflare, nginx) is in front, so per-IP rate limits use the real client IP.
+TRUST_PROXY=true
+# Extra browser origins allowed to call the API (comma separated). APP_URL is always allowed.
+# CORS_ORIGINS=
+# Optional: require this token on the first-run setup wizard (generate: openssl rand -hex 24)
+# SETUP_TOKEN=
+# JWT lifetime (default 24h)
+# JWT_EXPIRES_IN=24h
+# Webhook authenticity — unsigned webhooks are REJECTED unless the matching secret is set:
+# WHATSAPP_APP_SECRET=          # Meta app secret → X-Hub-Signature-256
+# TWILIO_AUTH_TOKEN=            # Twilio → X-Twilio-Signature (also needs APP_URL)
+# SENDGRID_WEBHOOK_PUBLIC_KEY=  # SendGrid Signed Event Webhook public key (base64)
+# WEBHOOK_SHARED_SECRET=        # append ?token=… to SendGrid Inbound Parse / Cal.com webhook URLs
+# CALCOM_WEBHOOK_SECRET=
+# Self-hosting only: allow custom AI endpoints on private addresses (e.g. Ollama on localhost). Leave unset on shared/SaaS hosting.
+# ALLOW_PRIVATE_AI_URLS=true
+# Temporarily show database error detail on /setup/status in production
+# SETUP_DEBUG=true
+
+# Docker only: database passwords (openssl rand -hex 16). No defaults are shipped.
+DB_PASSWORD=REPLACE_WITH_RANDOM_HEX
+DB_ROOT_PASSWORD=REPLACE_WITH_RANDOM_HEX
+# Optional shared key between API and the Python AI service (both must match)
+# AI_SERVICE_KEY=
+
+# Platform superadmin: comma-separated emails allowed to see all users/subscriptions, allocate plans and record payments.
+# If left empty, the very first account created (via /setup) is the superadmin.
+# SUPERADMIN_EMAILS=you@example.com
