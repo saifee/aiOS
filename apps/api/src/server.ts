@@ -125,12 +125,14 @@ async function main() {
   if (existsSync(frontendDir)) {
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith("/v1")) return reply.code(404).send({ error: "Not found" });
+      if (req.method !== "GET" && req.method !== "HEAD") return reply.code(405).header("Allow", "GET, HEAD").send("Method not allowed"); // no TRACE/PUT/DELETE on pages
       let urlPath: string;
       try { urlPath = decodeURIComponent(req.url.split("?")[0]); } catch { return reply.code(400).send("Bad request"); }
       // Never serve dotfiles, source maps or anything with a NUL byte / path-segment starting with "."
       if (urlPath.includes("\0") || /(^|\/)\./.test(urlPath.replace(/^\/\.well-known\//, "/")) || urlPath.endsWith(".map")) return reply.code(404).send("Not found");
       const clean = urlPath.replace(/^\/+|\/+$/g, "");
-      const candidates = extname(urlPath) ? [clean] : [`${clean}.html`, `${clean}/index.html`, "index.html"];
+      // Real pages only: /login -> login.html, / -> index.html. Anything else is a proper 404 (no HTML masquerading as 200 for random paths).
+      const candidates = extname(urlPath) ? [clean] : clean === "" ? ["index.html"] : [`${clean}.html`];
       for (const c of candidates) {
         const full = safeFile(c);
         if (full) {
@@ -141,7 +143,8 @@ async function main() {
         }
         if (full) return reply.type(MIME[extname(full)] || "application/octet-stream").send(readFileSync(full));
       }
-      return reply.code(404).send("Not found");
+      const nf = safeFile("404.html");
+      return nf ? reply.code(404).type("text/html; charset=utf-8").header("Cache-Control", "no-cache").send(readFileSync(nf)) : reply.code(404).send("Not found");
     });
   }
 

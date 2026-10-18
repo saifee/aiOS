@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.0 (security)
+
+- **CAPTCHA** on sign-in, sign-up, first-run setup and public booking: Cloudflare Turnstile or Google reCAPTCHA v2 (`CAPTCHA_PROVIDER`, `CAPTCHA_SITE_KEY`, `CAPTCHA_SECRET`). Off until configured; the app warns when it is off in production.
+- **Brute-force lockout**: 5 wrong passwords per email+IP, 25 per email, 40 per IP, then 15 minutes (HTTP 429 + Retry-After).
+- Password strength check (common, repetitive or personal passwords refused).
+- Fix: guest-supplied text is now escaped in booking emails; meeting/booking links must be http(s).
+- Fix: unknown URLs return a real 404 (not the home page); only GET/HEAD are accepted for pages.
+- Full audit report: `docs/security/AUDIT-2026-10.md`.
+
 ## 1.5.1
 
 - Fix: Google Gemini keys failed their test with "model gemini-2.0-flash is no longer available". The default is now the always-current `gemini-flash-latest`. Existing Gemini keys pick this up automatically (press Test again after updating); a key with its own model name typed in keeps it.

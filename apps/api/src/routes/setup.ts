@@ -5,6 +5,8 @@ import { z } from "zod";
 import { AGENT_REGISTRY } from "@leadhunter/agents";
 import { timingSafeEqual } from "crypto";
 import { isProd } from "../lib/security";
+import { guardCaptcha } from "../lib/captcha";
+import { weakPassword } from "../lib/passwords";
 
 const tokenOk = (given: unknown) => {
   const want = process.env.SETUP_TOKEN;
@@ -51,7 +53,11 @@ export async function setupRoutes(app: FastifyInstance) {
       password: z.string().min(10, "Password must be at least 10 characters").max(200),
       company: z.string().trim().min(1).max(120),
       setupToken: z.string().optional(),
+      captcha: z.string().max(4096).optional(),
     }).parse(req.body);
+    if (!(await guardCaptcha(req, reply, b.captcha))) return;
+    const weak = weakPassword(b.password, b.email, b.name);
+    if (weak) return reply.code(400).send({ error: weak });
 
     const slug = b.company.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + "-" + Date.now().toString(36);
     const tenant = await prisma.tenant.create({ data: { name: b.company, slug, plan: "ENTERPRISE" } });

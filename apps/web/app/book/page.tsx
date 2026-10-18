@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { CalendarPlus, CheckCircle2, Clock } from "lucide-react";
 import { api } from "@/lib/api";
+import { Captcha } from "@/components/Captcha";
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -12,6 +13,7 @@ export default function Book() {
   const [type, setType] = useState<any>(null); const [date, setDate] = useState(""); const [slots, setSlots] = useState<string[] | null>(null); const [slot, setSlot] = useState("");
   const [f, setF] = useState({ name: "", email: "", phone: "", notes: "" }); const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<any>(null);
+  const [captcha, setCaptcha] = useState(""); const [capKey, setCapKey] = useState(0);
   const [mine, setMine] = useState<any>(null);
 
   useEffect(() => {
@@ -32,8 +34,8 @@ export default function Book() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr("");
-    try { setDone(await api(`/public/book/${slug}`, { method: "POST", body: JSON.stringify({ type: type.id, startsAt: slot, name: f.name, email: f.email, phone: f.phone || undefined, notes: f.notes || undefined }) })); }
-    catch (e: any) { setErr(e.message); setSlot(""); setSlots(null); if (date) api(`/public/book/${slug}/slots?type=${type.id}&date=${date}`).then((r) => setSlots(r.slots)).catch(() => {}); }
+    try { setDone(await api(`/public/book/${slug}`, { method: "POST", body: JSON.stringify({ type: type.id, startsAt: slot, ...(captcha && { captcha }), name: f.name, email: f.email, phone: f.phone || undefined, notes: f.notes || undefined }) })); }
+    catch (e: any) { setCapKey((k) => k + 1); setErr(e.message); setSlot(""); setSlots(null); if (date) api(`/public/book/${slug}/slots?type=${type.id}&date=${date}`).then((r) => setSlots(r.slots)).catch(() => {}); }
     setBusy(false);
   }
   async function cancel() { if (!confirm("Cancel this booking?")) return; try { await api(`/public/booking/${tok}/cancel`, { method: "POST" }); setMine({ ...mine, status: "cancelled" }); } catch (e: any) { setErr(e.message); } }
@@ -69,6 +71,7 @@ export default function Book() {
               <label className="block text-sm font-medium">Email<input className="input mt-1" type="email" required autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
               <label className="block text-sm font-medium">Phone / WhatsApp (optional)<input className="input mt-1" type="tel" autoComplete="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></label>
               <label className="block text-sm font-medium">Anything we should know? (optional)<textarea className="input mt-1" rows={3} maxLength={1000} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></label>
+              <Captcha onToken={setCaptcha} resetKey={capKey} />
               {err && <p role="alert" className="text-sm text-danger">{err}</p>}
               <button className="btn w-full py-2.5" disabled={busy}>{busy ? "Booking…" : "Confirm booking"}</button>
             </form>

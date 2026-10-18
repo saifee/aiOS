@@ -48,17 +48,21 @@ export function securityWarnings(): string[] {
   const jp = jwtSecretProblem(); if (jp) w.push(jp);
   if (!encryptionConfigured()) w.push("ENCRYPTION_KEY is missing/invalid — API keys and integration credentials cannot be stored safely.");
   if (!process.env.CRON_SECRET) w.push("CRON_SECRET is not set — the external cron endpoint is disabled.");
+  if (isProd() && !captchaConfig()) w.push("CAPTCHA is not configured — sign-in and sign-up have no bot check. Set CAPTCHA_PROVIDER (turnstile or recaptcha), CAPTCHA_SITE_KEY and CAPTCHA_SECRET.");
   if (isProd() && !process.env.APP_URL) w.push("APP_URL is not set — CORS will only allow same-origin requests.");
   if (isProd() && !process.env.TRUST_PROXY) w.push("TRUST_PROXY is not set — per-IP rate limits see the proxy address. Set TRUST_PROXY=true behind Hostinger/Cloudflare.");
   return w;
 }
 
-export const CSP = [
+import { captchaConfig, captchaCsp } from "./captcha";
+const baseCsp = (extra = { script: "", frame: "", connect: "" }) => [
   "default-src 'self'", "base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'", "form-action 'self'",
   // Next.js static export emits inline bootstrap scripts; nonces need SSR. Documented residual risk.
-  "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https://fonts.gstatic.com", "connect-src 'self'",
+  `script-src 'self' 'unsafe-inline'${extra.script}`, `frame-src 'self'${extra.frame}`, "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com", `connect-src 'self'${extra.connect}`,
 ].join("; ");
+export const CSP = baseCsp();
+export const cspHeader = () => baseCsp(captchaCsp());
 
 export function registerSecurity(app: FastifyInstance) {
   app.addHook("onSend", async (req, reply) => {
@@ -70,7 +74,7 @@ export function registerSecurity(app: FastifyInstance) {
     reply.header("Cross-Origin-Resource-Policy", "same-site");
     if (isProd()) reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     const ct = String(reply.getHeader("content-type") ?? "");
-    if (ct.startsWith("text/html")) reply.header("Content-Security-Policy", CSP);
+    if (ct.startsWith("text/html")) reply.header("Content-Security-Policy", cspHeader());
     if (req.url.startsWith("/v1")) reply.header("Cache-Control", "no-store");
   });
 

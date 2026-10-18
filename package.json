@@ -1,7 +1,7 @@
 {
   "name": "leadhunter",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "aiOS \u2014 the AI operating system for your company: every department is an autonomous AI employee on a shared CRM, knowledge base, event bus, and phone system.",
   "workspaces": [
     "apps/*",

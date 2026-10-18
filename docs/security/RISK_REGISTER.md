@@ -18,3 +18,6 @@ Likelihood/Impact: L/M/H. Owner for all items: Founder / Head of IT. Review each
 | R-12 | In-memory rate limiter resets on restart, per-process | L | L | Accepted | Redis store when available | backlog |
 | R-13 | `npm audit` cannot see zero-days / non-npm components | L | M | Accepted | weekly scans, OSV, Dependabot | ongoing |
 | R-14 | Superadmin account compromise exposes all workspaces, plan allocation and payment settings | L | H | Open | Restrict `SUPERADMIN_EMAILS`, long unique password, audit log on admin actions; MFA planned (R-03) | next release |
+
+## R-15 Credential stuffing / brute force (closed in 1.6.0)
+Mitigated by captcha (Turnstile / reCAPTCHA), per-email+IP / per-email / per-IP lockouts, per-IP rate limits and a password strength check. Residual: in-memory lockout state (resets on restart). See AUDIT-2026-10.md.

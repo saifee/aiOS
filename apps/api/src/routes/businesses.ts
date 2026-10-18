@@ -20,7 +20,7 @@ const businessSchema = z.object({
   timezone: z.string().default("Asia/Riyadh"),
   languages: z.array(z.string()).default(["en"]),
   tone: z.string().default("professional"),
-  calendarLink: z.string().url().optional(),
+  calendarLink: z.string().url().max(500).refine((u) => /^https?:\/\//i.test(u), "Use a link starting with http:// or https://").optional(),
   minLeadScore: z.number().int().min(0).max(100).default(60),
   notificationPrefs: z.any().optional(),
   kind: z.enum(["company", "personal"]).optional(),

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { api, setToken } from "@/lib/api";
 import { LogoMark, Wordmark } from "@/components/Logo";
+import { Captcha } from "@/components/Captcha";
 
 export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [form, setForm] = useState({ email: "", password: "", name: "", tenantName: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [captcha, setCaptcha] = useState(""); const [capKey, setCapKey] = useState(0);
   const [sso, setSso] = useState<{ google?: boolean; microsoft?: boolean }>({});
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -23,10 +25,10 @@ export default function Login() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      const res = await api(`/auth/${mode}`, { method: "POST", body: JSON.stringify(form) });
+      const res = await api(`/auth/${mode}`, { method: "POST", body: JSON.stringify({ ...form, ...(captcha && { captcha }) }) });
       setToken(res.token);
       window.location.href = mode === "register" ? "/settings#business" : "/dashboard";
-    } catch (e: any) { setError(e.message); }
+    } catch (e: any) { setError(e.message); setCapKey((k) => k + 1); }
     setBusy(false);
   }
   const f = (k: keyof typeof form) => ({ value: form[k], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value }) });
@@ -53,6 +55,7 @@ export default function Login() {
           <label className="mb-3 block text-sm font-medium">Email<input className="input mt-1" type="email" autoComplete="email" required {...f("email")} /></label>
           <label className="mb-4 block text-sm font-medium">Password<input className="input mt-1" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 10 : undefined} required {...f("password")} />
             {mode === "register" && <span className="text-xs text-ink/50">At least 10 characters.</span>}</label>
+          <Captcha onToken={setCaptcha} resetKey={capKey} />
           {error && <p role="alert" className="mb-3 text-sm text-danger">{error}</p>}
           <button className="btn w-full py-2.5" disabled={busy}>{busy ? "One moment…" : mode === "login" ? "Sign in" : "Create workspace"}</button>
           {(sso.google || sso.microsoft) && (

@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Captcha } from "@/components/Captcha";
 import { api, setToken, setBusinessId } from "@/lib/api";
 import { LogoMark, Wordmark } from "@/components/Logo";
 
 export default function Setup() {
   const [status, setStatus] = useState<any>(null);
+  const [captcha, setCaptcha] = useState("");
   const [form, setForm] = useState({ name: "", email: "", password: "", company: "", setupToken: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,7 +20,7 @@ export default function Setup() {
   async function init() {
     setError(""); setBusy(true);
     try {
-      const res = await api("/setup/init", { method: "POST", body: JSON.stringify(form) });
+      const res = await api("/setup/init", { method: "POST", body: JSON.stringify({ ...form, ...(captcha && { captcha }) }) });
       setToken(res.token);
       setBusinessId(res.businessId);
       window.location.href = "/dashboard";
@@ -58,6 +60,7 @@ export default function Setup() {
               <input className="input mb-4" type="password" autoComplete="off" value={form.setupToken} onChange={(e) => setForm({ ...form, setupToken: e.target.value })} />
             </>)}
             {error && <p className="mb-3 text-sm text-danger">{error}</p>}
+            <Captcha onToken={setCaptcha} />
             <button className="btn w-full justify-center" disabled={busy || !form.email || form.password.length < 10 || !form.company || !form.name} onClick={init}>
               {busy ? "Setting up…" : "Finish setup & sign in"}
             </button>

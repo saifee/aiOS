@@ -2,12 +2,15 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
 import { z } from "zod";
 import { sendEmail } from "@leadhunter/integrations";
+import { guardCaptcha } from "../lib/captcha";
 import { BookingConfig, googleCalUrl, isDate, readConfig, slotsFor, slugify, token, toIcs, validTimezone, zonedToUtc } from "../lib/booking";
 
 const db: any = prisma;
 const appUrl = () => (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 const publicUrl = (slug: string) => `${appUrl()}/book?b=${slug}`;
 const feedUrl = (t: string) => `${appUrl()}/v1/public/calendar/${t}.ics`;
+const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[c]!);
+const httpUrl = z.string().url().max(300).refine((u) => /^https?:\/\//i.test(u), "Use a link starting with http:// or https://");
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 const configSchema = z.object({
@@ -17,7 +20,7 @@ const configSchema = z.object({
   hours: z.record(z.string().regex(/^[0-6]$/), z.array(z.tuple([hhmm, hhmm]).refine(([a, b]) => a < b, "Start must be before end")).max(4)),
   types: z.array(z.object({ id: z.string().regex(/^[a-z0-9-]{1,30}$/), title: z.string().trim().min(1).max(80), minutes: z.number().int().min(10).max(480), description: z.string().max(300).optional() })).min(1).max(8),
   minNoticeHours: z.number().int().min(0).max(720), daysAhead: z.number().int().min(1).max(180), bufferMin: z.number().int().min(0).max(120),
-  preferExternal: z.boolean(), notifyEmail: z.union([z.string().email(), z.literal("")]), joinUrl: z.union([z.string().url().max(300), z.literal("")]),
+  preferExternal: z.boolean(), notifyEmail: z.union([z.string().email(), z.literal("")]), joinUrl: z.union([httpUrl, z.literal("")]),
 }).strict();
 
 async function bySlug(slug: string) {
@@ -42,13 +45,13 @@ async function notifyOwner(biz: any, cfg: BookingConfig, b: any) {
     const when = fmt(b.startsAt, cfg.timezone);
     for (const o of owners) await db.notification.create({ data: { userId: o.userId, title: "New booking", body: `${b.name} booked ${b.typeTitle} on ${when}.`, kind: "booking", channels: [], meta: { bookingId: b.id, businessId: biz.id } } }).catch(() => {});
     const to = cfg.notifyEmail || owners[0]?.user?.email;
-    if (to) await sendEmail({ to, subject: `New booking: ${b.name} · ${when}`, html: `<p><b>${b.name}</b> (${b.email}${b.phone ? ", " + b.phone : ""}) booked <b>${b.typeTitle}</b>.</p><p>${when} (${cfg.timezone})</p>${b.notes ? `<p>${String(b.notes).replace(/</g, "&lt;")}</p>` : ""}<p><a href="${appUrl()}/bookings">Open bookings</a></p>`, from: process.env.DEFAULT_FROM_EMAIL ?? "noreply@aios.app", unsubscribeUrl: `${appUrl()}/settings` });
+    if (to) await sendEmail({ to, subject: `New booking: ${b.name} · ${when}`, html: `<p><b>${esc(b.name)}</b> (${esc(b.email)}${b.phone ? ", " + esc(b.phone) : ""}) booked <b>${esc(b.typeTitle)}</b>.</p><p>${esc(when)} (${esc(cfg.timezone)})</p>${b.notes ? `<p>${esc(b.notes)}</p>` : ""}<p><a href="${appUrl()}/bookings">Open bookings</a></p>`, from: process.env.DEFAULT_FROM_EMAIL ?? "noreply@aios.app", unsubscribeUrl: `${appUrl()}/settings` });
   } catch { /* notifications are best-effort */ }
 }
 async function confirmGuest(biz: any, cfg: BookingConfig, b: any) {
   try {
     await sendEmail({ to: b.email, subject: `Confirmed: ${b.typeTitle} with ${biz.name}`, from: process.env.DEFAULT_FROM_EMAIL ?? "noreply@aios.app", unsubscribeUrl: `${appUrl()}/`,
-      html: `<p>Hi ${String(b.name).replace(/</g, "&lt;")}, your booking is confirmed.</p><p><b>${b.typeTitle}</b><br>${fmt(b.startsAt, cfg.timezone)} (${cfg.timezone})</p>${b.joinUrl ? `<p>Join: <a href="${b.joinUrl}">${b.joinUrl}</a></p>` : ""}<p><a href="${googleCalUrl(`${b.typeTitle} · ${biz.name}`, b.startsAt, b.endsAt)}">Add to Google Calendar</a> · <a href="${appUrl()}/v1/public/booking/${b.token}.ics">Apple / Outlook (.ics)</a></p><p><a href="${appUrl()}/book?t=${b.token}">Change or cancel</a></p>` });
+      html: `<p>Hi ${esc(b.name)}, your booking is confirmed.</p><p><b>${esc(b.typeTitle)}</b><br>${esc(fmt(b.startsAt, cfg.timezone))} (${esc(cfg.timezone)})</p>${b.joinUrl ? `<p>Join: <a href="${esc(b.joinUrl)}">${esc(b.joinUrl)}</a></p>` : ""}<p><a href="${googleCalUrl(`${b.typeTitle} · ${biz.name}`, b.startsAt, b.endsAt)}">Add to Google Calendar</a> · <a href="${appUrl()}/v1/public/booking/${b.token}.ics">Apple / Outlook (.ics)</a></p><p><a href="${appUrl()}/book?t=${b.token}">Change or cancel</a></p>` });
   } catch { /* guest still sees confirmation on screen */ }
 }
 
@@ -73,7 +76,8 @@ export async function bookingRoutes(app: FastifyInstance) {
   app.post("/public/book/:slug", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
     const r = await bySlug((req.params as any).slug);
     if (!r) return reply.code(404).send({ error: "This booking page is not available." });
-    const b = z.object({ type: z.string().max(30), startsAt: z.string().datetime({ offset: true }), name: z.string().trim().min(1).max(120), email: z.string().trim().toLowerCase().email().max(190), phone: z.string().trim().max(40).optional(), notes: z.string().trim().max(1000).optional(), source: z.enum(["link", "ai"]).optional() }).strict().parse(req.body);
+    const b = z.object({ captcha: z.string().max(4096).optional(), type: z.string().max(30), startsAt: z.string().datetime({ offset: true }), name: z.string().trim().min(1).max(120), email: z.string().trim().toLowerCase().email().max(190), phone: z.string().trim().max(40).optional(), notes: z.string().trim().max(1000).optional(), source: z.enum(["link", "ai"]).optional() }).strict().parse(req.body);
+    if (!(await guardCaptcha(req, reply, b.captcha))) return;
     const { biz, cfg } = r;
     const type = cfg.types.find((t) => t.id === b.type);
     if (!type) return reply.code(400).send({ error: "Unknown meeting type" });
