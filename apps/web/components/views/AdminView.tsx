@@ -51,9 +51,10 @@ export function AdminView() {
 
 function TenantPanel({ id, onBack }: { id: string; onBack: () => void }) {
   const { t } = usePrefs();
-  const { data, mutate } = useSWR(`/admin/tenants/${id}`, fetcher);
+  const { data, error, mutate } = useSWR(`/admin/tenants/${id}`, fetcher);
   const [plan, setPlan] = useState(""); const [status, setStatus] = useState(""); const [end, setEnd] = useState("");
   const [pay, setPay] = useState({ amount: "", currency: "USD", method: "bank_transfer", reference: "", note: "", activatePlan: "", months: "1" });
+  if (error) return <div className="space-y-3"><button className="btn-ghost px-3 py-1.5" onClick={onBack}>{t("Back")}</button><p className="text-sm text-red-600">{String(error.message || error)}</p></div>;
   if (!data) return <p className="text-sm text-ink/60">{t("Loading…")}</p>;
   const sub = data.subscription;
   const curPlan = plan || sub?.plan || data.plan, curStatus = status || sub?.status || "active";

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3
+
+- Fix: "Manage" on a user in Settings > Users & subscriptions stayed on "Loading". The workspace detail now has the same plain-SQL fallback, a payments/subscription read problem can't block it, saving a plan no longer fails if the workspace's mirrored plan column is odd, and a real error (with a Back button) is shown instead of an endless spinner.
+
 ## 1.6.2
 
 - Fix: Settings > Users & subscriptions showed "Internal server error" and no workspaces. The list now falls back to a plain-SQL query if the normal one fails, a subscription lookup problem can no longer hide the list, and any remaining failure shows the real reason (superadmin only) instead of a generic message.

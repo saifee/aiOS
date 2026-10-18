@@ -95,12 +95,27 @@ export async function adminRoutes(app: FastifyInstance) {
   // ── One workspace: members, subscription, payments ─────────
   app.get("/admin/tenants/:id", async (req, reply) => {
     const { id } = Id.parse(req.params);
-    const t = await db.tenant.findUnique({ where: { id }, select: { id: true, name: true, plan: true, createdAt: true, stripeCustomerId: true, users: { select: { role: true, user: { select: { id: true, email: true, name: true } } } } } });
+    let t: any, sub: any = null, payments: any[] = [];
+    try {
+      t = await db.tenant.findUnique({ where: { id }, select: { id: true, name: true, plan: true, createdAt: true, stripeCustomerId: true, users: { select: { role: true, user: { select: { id: true, email: true, name: true } } } } } });
+    } catch (err: any) {
+      // Plain-SQL fallback (e.g. a Tenant.plan value Prisma cannot map).
+      req.log.error({ err }, "admin/tenants primary query failed, trying raw fallback");
+      const rows: any[] = await db.$queryRawUnsafe("SELECT id, name, CAST(plan AS CHAR) AS plan, createdAt, stripeCustomerId FROM `Tenant` WHERE id = ? LIMIT 1", id);
+      if (rows[0]) {
+        const ms: any[] = await db.$queryRawUnsafe("SELECT CAST(m.role AS CHAR) AS role, u.id AS uid, u.email AS email, u.name AS uname FROM `Membership` m JOIN `User` u ON u.id = m.userId WHERE m.tenantId = ?", id);
+        t = { ...rows[0], users: ms.map((m) => ({ role: m.role, user: { id: m.uid, email: m.email, name: m.uname } })) };
+      }
+    }
     if (!t) return reply.code(404).send({ error: "Workspace not found" });
-    const [sub, payments] = await Promise.all([
-      db.subscription.findUnique({ where: { tenantId: id } }),
-      db.payment.findMany({ where: { tenantId: id }, orderBy: { createdAt: "desc" }, take: 100 }),
-    ]);
+    try { sub = await db.subscription.findUnique({ where: { tenantId: id } }); }
+    catch (err: any) {
+      req.log.error({ err }, "admin/tenants subscription read failed, trying raw");
+      const r: any[] = await db.$queryRawUnsafe("SELECT CAST(plan AS CHAR) AS plan, status, seats, currentPeriodEnd, stripeSubscriptionId FROM `Subscription` WHERE tenantId = ? LIMIT 1", id).catch(() => []);
+      sub = r[0] ?? null;
+    }
+    try { payments = await db.payment.findMany({ where: { tenantId: id }, orderBy: { createdAt: "desc" }, take: 100 }); }
+    catch (err: any) { req.log.error({ err }, "admin/tenants payments read failed"); payments = []; }
     return {
       id: t.id, name: t.name, plan: sub?.plan ?? t.plan, createdAt: t.createdAt, stripeCustomer: !!t.stripeCustomerId,
       members: t.users.map((m: any) => ({ role: m.role, ...m.user })),
@@ -108,6 +123,15 @@ export async function adminRoutes(app: FastifyInstance) {
       payments,
     };
   });
+
+  // Keep Tenant.plan in step with the subscription; never let that mirror column block the real change.
+  async function setTenantPlan(id: string, plan: string, log: any) {
+    try { await db.tenant.update({ where: { id }, data: { plan } }); }
+    catch (err: any) {
+      log.error({ err }, "tenant.plan update failed, trying raw");
+      await db.$executeRawUnsafe("UPDATE `Tenant` SET plan = ? WHERE id = ?", plan, id).catch(() => {});
+    }
+  }
 
   // ── Allocate / change a subscription ───────────────────────
   app.put("/admin/tenants/:id/subscription", async (req, reply) => {
@@ -121,7 +145,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const end = b.currentPeriodEnd === undefined ? undefined : b.currentPeriodEnd ? new Date(b.currentPeriodEnd) : null;
     const data = { plan: b.plan, status: b.status, ...(end !== undefined && { currentPeriodEnd: end }), ...(b.seats && { seats: b.seats }) };
     const sub = await db.subscription.upsert({ where: { tenantId: id }, update: data, create: { tenantId: id, ...data } });
-    await db.tenant.update({ where: { id }, data: { plan: b.plan } });
+    await setTenantPlan(id, b.plan, req.log);
     invalidatePlan(id);
     await audit(id, req.auth!.userId, "admin.subscription.set", id, { plan: b.plan, status: b.status, currentPeriodEnd: end ?? null });
     return { ok: true, subscription: { plan: sub.plan, status: sub.status, currentPeriodEnd: sub.currentPeriodEnd } };
@@ -149,7 +173,7 @@ export async function adminRoutes(app: FastifyInstance) {
       periodEnd = new Date(base); periodEnd.setMonth(periodEnd.getMonth() + (b.months ?? 1));
       const data = { plan: b.activatePlan, status: "active", currentPeriodEnd: periodEnd };
       await db.subscription.upsert({ where: { tenantId: id }, update: data, create: { tenantId: id, ...data } });
-      await db.tenant.update({ where: { id }, data: { plan: b.activatePlan } });
+      await setTenantPlan(id, b.activatePlan, req.log);
       invalidatePlan(id);
     }
     await audit(id, req.auth!.userId, "admin.payment.record", payment.id, { amountCents: payment.amountCents, currency: payment.currency, method: b.method, plan: b.activatePlan ?? null });
