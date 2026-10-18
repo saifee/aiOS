@@ -32,7 +32,7 @@ import { tenantPlugin } from "./plugins/tenant";
 import { cronRoutes, startInlineScheduler } from "./routes/cron";
 import { registerInlineProcessors } from "../../workers/src/registry";
 import { INLINE } from "@leadhunter/agents";
-import { runMigrations } from "./lib/migrate";
+import { runMigrations, ensureSchema } from "./lib/migrate";
 
 import { jwtSecretProblem, registerSecurity, resolveJwtSecret, allowedOrigins, trustProxySetting, securityWarnings, isProd } from "./lib/security";
 
@@ -135,6 +135,7 @@ async function main() {
 
   if (isProd()) app.log.info("Production security profile active (HSTS, strict CORS, JWT secret enforced).");
   if (process.env.AUTO_MIGRATE === "true") await runMigrations(app.log);
+  await ensureSchema(app.log); // idempotent: adds any table an older database is missing
 
   // No Redis? Run the background workers inside this process.
   if (INLINE) {

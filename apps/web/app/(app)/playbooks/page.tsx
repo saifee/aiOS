@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ListChecks, Play, Sparkles } from "lucide-react";
 import { PageHeader, Tabs, TabDef } from "@/components/Tabs";
-import { useHashTab } from "@/lib/hooks";
+import { useHashTab, useIsPersonal } from "@/lib/hooks";
 import { api, businessId } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { RECIPES } from "@/lib/recipes";
@@ -14,6 +14,7 @@ type Id = (typeof IDS)[number];
 const TABS: TabDef<Id>[] = [{ id: "recipes", label: "Recipes", icon: Sparkles }, { id: "sops", label: "SOPs", icon: ListChecks }];
 
 export default function Playbooks() {
+  const personal = useIsPersonal();
   const [tab, setTab] = useHashTab(IDS, "recipes");
   const [running, setRunning] = useState<string | null>(null);
   const [result, setResult] = useState<{ title: string; text: string } | null>(null);
@@ -38,7 +39,7 @@ export default function Playbooks() {
       {tab === "recipes" && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {RECIPES.map((r) => {
+            {RECIPES.filter((r) => !!r.personal === personal).map((r) => {
               const m = metaFor(r.role); const Icon = m.icon;
               return (
                 <div key={r.id} className="card flex flex-col">

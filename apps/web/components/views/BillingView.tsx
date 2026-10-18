@@ -33,7 +33,7 @@ export function BillingView() {
           <h2 className="text-lg font-semibold">Plan &amp; billing</h2>
           <p className="text-sm text-ink/60">Your plan, monthly usage and upgrades.</p>
         </div>
-        <button className="btn-ghost" onClick={portal}>Manage payment</button>
+        {sub?.hasBilling && <button className="btn-ghost" onClick={portal}>{t("Manage payment")}</button>}
       </header>
 
       {sub?.plan === "FREE" && (
@@ -82,7 +82,9 @@ export function BillingView() {
             <div key={m.id} className="rounded-xl border border-line p-3 text-sm"><div className="font-semibold">{m.label}</div>{m.instructions && <p className="mt-1 whitespace-pre-line text-ink/70">{m.instructions}</p>}</div>))}
         </div>
       )}
-      <p className="text-xs text-ink/40">Enterprise? <button className="text-signal" onClick={portal}>Talk to us</button> for custom limits and SLAs.</p>
+      <p className="text-xs text-ink/40">Enterprise? {methods?.contactEmail
+        ? <a className="text-signal" href={`mailto:${methods.contactEmail}?subject=aiOS%20Enterprise`}>{t("Talk to us")}</a>
+        : <button className="text-signal" onClick={() => toast("Ask your administrator to set up Enterprise.")}>{t("Talk to us")}</button>} for custom limits and SLAs.</p>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma, arr, findLeadByListValue } from "@leadhunter/db";
 import { queues } from "../lib/queues";
 import { loadPaymentConfig } from "../lib/payments";
-import { verifyWebhook, PLANS } from "@leadhunter/integrations";
+import { verifyWebhook, PLANS, decrypt } from "@leadhunter/integrations";
 import { z } from "zod";
 import { timingSafeEqual } from "crypto";
 import { verifyMetaSignature, verifySendgridSignature, verifySharedSecret, hmacHex, isProd } from "../lib/security";
@@ -22,24 +22,42 @@ const eq = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from
  * the conversation queue where the AI agent takes over.
  */
 export async function webhookRoutes(app: FastifyInstance) {
-  // Meta verification handshake
+  // The business's own WhatsApp connection (Settings → Integrations), found by the phone number Meta reports.
+  async function waIntegration(phoneNumberId: unknown) {
+    if (typeof phoneNumberId !== "string" || !phoneNumberId) return null;
+    const row: any = await prisma.integration.findFirst({ where: { provider: "whatsapp_cloud", status: "connected", config: { path: "$.phoneNumberId", equals: phoneNumberId } } }).catch(() => null);
+    if (!row) return null;
+    let creds: any = {}; try { creds = JSON.parse(decrypt(row.credentials?.enc ?? "")); } catch { /* unreadable */ }
+    return { businessId: row.businessId as string, creds };
+  }
+
+  // Meta verification handshake: accepts the server-wide token or any business's own verify token.
   app.get("/whatsapp", async (req, reply) => {
     const q = req.query as any;
-    const want = process.env.WHATSAPP_VERIFY_TOKEN;
-    if (want && q["hub.mode"] === "subscribe" && typeof q["hub.verify_token"] === "string" && eq(q["hub.verify_token"], want))
-      return reply.type("text/plain").send(String(q["hub.challenge"] ?? "").replace(/[^\w-]/g, ""));
+    const got = q["hub.verify_token"];
+    if (q["hub.mode"] === "subscribe" && typeof got === "string") {
+      let ok = !!process.env.WHATSAPP_VERIFY_TOKEN && eq(got, process.env.WHATSAPP_VERIFY_TOKEN);
+      if (!ok) {
+        const rows: any[] = await prisma.integration.findMany({ where: { provider: "whatsapp_cloud" }, select: { credentials: true } }).catch(() => []);
+        for (const r of rows) { try { const t = JSON.parse(decrypt(r.credentials?.enc ?? "")).verifyToken; if (typeof t === "string" && t && eq(got, t)) { ok = true; break; } } catch { /* skip */ } }
+      }
+      if (ok) return reply.type("text/plain").send(String(q["hub.challenge"] ?? "").replace(/[^\w-]/g, ""));
+    }
     return reply.code(403).send();
   });
 
   app.post("/whatsapp", raw, async (req, reply) => {
-    if (!unsignedAllowed() && !verifyMetaSignature((req as any).rawBody, req.headers["x-hub-signature-256"])) return deny(reply, "bad or missing signature (set WHATSAPP_APP_SECRET)");
+    const phoneId = (req.body as any)?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    const conn = await waIntegration(phoneId);
+    const secret: string | undefined = conn?.creds?.appSecret || process.env.WHATSAPP_APP_SECRET;
+    if (!unsignedAllowed() && !verifyMetaSignature((req as any).rawBody, req.headers["x-hub-signature-256"], secret)) return deny(reply, "bad or missing signature (add the Meta app secret under Settings → Integrations)");
     const body = req.body as any;
     const value = body?.entry?.[0]?.changes?.[0]?.value;
     for (const m of value?.messages ?? []) {
       const from: string = String(m.from ?? "");
       const text: string = String(m.text?.body ?? "").slice(0, 4000);
       if (from.replace(/\D/g, "").length < 7) continue; // avoid contains-matching on tiny fragments
-      const lead = await prisma.lead.findFirst({ where: { whatsapp: { contains: from.slice(-9) } } });
+      const lead = await prisma.lead.findFirst({ where: { whatsapp: { contains: from.slice(-9) }, ...(conn && { businessId: conn.businessId }) } });
       if (!lead) continue;
       await handleInbound(lead.id, "WHATSAPP", text);
     }

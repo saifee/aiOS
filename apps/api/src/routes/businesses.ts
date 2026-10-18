@@ -23,7 +23,10 @@ const businessSchema = z.object({
   calendarLink: z.string().url().optional(),
   minLeadScore: z.number().int().min(0).max(100).default(60),
   notificationPrefs: z.any().optional(),
+  kind: z.enum(["company", "personal"]).optional(),
 });
+// "kind" lives inside the existing `branding` JSON column, so no database change is needed.
+const withKind = (d: any, prev?: any) => { const { kind, ...rest } = d; return kind ? { ...rest, branding: { ...(prev ?? {}), kind } } : rest; };
 
 export async function businessRoutes(app: FastifyInstance) {
   app.addHook("onRequest", (req) => app.authenticate(req));
@@ -34,7 +37,9 @@ export async function businessRoutes(app: FastifyInstance) {
 
   app.post("/", async (req, reply) => {
     const data = businessSchema.parse(req.body);
-    const biz = await prisma.business.create({ data: { ...data, tenantId: req.auth!.tenantId } });
+    const count = await prisma.business.count({ where: { tenantId: req.auth!.tenantId } });
+    if (count >= 25) return reply.code(400).send({ error: "You have reached the limit of 25 companies per workspace." });
+    const biz = await prisma.business.create({ data: { ...withKind(data), tenantId: req.auth!.tenantId } });
     await prisma.auditLog.create({
       data: { tenantId: req.auth!.tenantId, actor: `user:${req.auth!.userId}`, action: "business.create", target: biz.id },
     });
@@ -51,6 +56,7 @@ export async function businessRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     await app.requireBusiness(req, id);
     const data = businessSchema.partial().parse(req.body);
-    return prisma.business.update({ where: { id }, data });
+    const prev = data.kind ? (await prisma.business.findUnique({ where: { id }, select: { branding: true } }))?.branding : undefined;
+    return prisma.business.update({ where: { id }, data: withKind(data, prev) });
   });
 }

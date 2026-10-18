@@ -58,6 +58,9 @@ export const AR: Record<string, string> = {
   "Everything in Free": "كل ما في المجانية", "1,000 leads, 2,000 outreach per month": "1,000 عميل محتمل و2,000 رسالة شهرياً", "300 AI calls per month": "300 مكالمة ذكية شهرياً", "3 seats": "3 مقاعد", "Managed AI included": "الذكاء الاصطناعي المُدار مضمّن",
   "Everything in Starter": "كل ما في المبتدئ", "5,000 leads, 10,000 outreach per month": "5,000 عميل محتمل و10,000 رسالة شهرياً", "1,500 AI calls per month": "1,500 مكالمة ذكية شهرياً", "10 seats": "10 مقاعد", "Priority support": "دعم ذو أولوية",
   "Everything in Growth": "كل ما في النمو", "25,000 leads, 60,000 outreach per month": "25,000 عميل محتمل و60,000 رسالة شهرياً", "8,000 AI calls per month": "8,000 مكالمة ذكية شهرياً", "30 seats": "30 مقعداً", "Custom limits on request": "حدود مخصصة عند الطلب",
+  "Test connection": "اختبار الاتصال",
+  "Copied": "تم النسخ",
+  "Manage payment": "إدارة الدفع", "Talk to us": "تواصل معنا", "Add company": "إضافة شركة", "Personal space": "مساحة شخصية", "Company": "شركة", "Integrations": "التكاملات", "Create": "إنشاء", "Cancel": "إلغاء",
   // Admin
   "Search by name or email": "ابحث بالاسم أو البريد", "Search": "بحث", "Workspaces": "مساحات العمل", "Plan": "الخطة", "Status": "الحالة", "Paid until": "مدفوع حتى", "Manage": "إدارة",
   "Subscription": "الاشتراك", "Save subscription": "حفظ الاشتراك", "Members": "الأعضاء", "Payments": "المدفوعات", "Record a manual payment": "تسجيل دفعة يدوية",

@@ -1,3 +1,4 @@
+import { whatsappCfg } from "@leadhunter/agents";
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
 import { prisma } from "@leadhunter/db";
@@ -62,7 +63,7 @@ export async function conversationProcessor(job: Job) {
   const msg = await prisma.message.create({ data: { leadId, channel, direction: "OUTBOUND", body: result.reply, status: "QUEUED", meta: { ai: true, intent: result.intent } } });
   try {
     if (channel === "WHATSAPP" && lead.whatsapp) {
-      const out = await sendWhatsAppText(lead.whatsapp, result.reply); // within 24h service window after their reply
+      const out = await sendWhatsAppText(lead.whatsapp, result.reply, await whatsappCfg(lead.businessId)); // within 24h service window after their reply
       await prisma.message.update({ where: { id: msg.id }, data: { status: "SENT", sentAt: new Date(), providerId: out.providerId } });
     } else if (channel === "EMAIL" && lead.contacts[0]?.email) {
       const out = await sendEmail({ to: lead.contacts[0].email, subject: `Re: ${b.name}`, html: result.reply.replace(/\n/g, "<br/>"), from: process.env.DEFAULT_FROM_EMAIL ?? "outreach@leadhunter.app", unsubscribeUrl: `${process.env.APP_URL}/u/${leadId}` });

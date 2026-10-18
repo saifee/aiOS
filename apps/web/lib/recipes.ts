@@ -1,4 +1,4 @@
-export type Recipe = { id: string; title: string; blurb: string; role: string; prompt: string; tag: string };
+export type Recipe = { id: string; title: string; blurb: string; role: string; prompt: string; tag: string; personal?: boolean };
 
 /** One-click routines. Each hands a well-written brief to the right agent. */
 export const RECIPES: Recipe[] = [
@@ -16,4 +16,11 @@ export const RECIPES: Recipe[] = [
   { id: "tenders", tag: "Growth", role: "business_development", title: "Tender & RFP radar", blurb: "Public tenders and partnerships matching what we do.", prompt: "Find current tenders, RFPs and partnership opportunities in Saudi Arabia and the GCC that match our services. List the top 5 with deadlines and next steps." },
   { id: "hiring", tag: "People", role: "hr", title: "Hiring kit", blurb: "Job post, scorecard and interview questions for a role.", prompt: "Create a hiring kit for a sales executive: job post, scoring rubric, 8 interview questions and a 30-day onboarding checklist." },
   { id: "decisions", tag: "Weekly", role: "knowledge_manager", title: "Decision review", blurb: "Revisits past decisions: what we chose and what happened.", prompt: "Summarize the key decisions recorded in the last 30 days, what each assumed, and whether results so far support them." },
+  // ── Personal assistant space ──
+  { id: "p-week", personal: true, tag: "Personal", role: "ceo_assistant", title: "Plan my week", blurb: "Turns your goals and commitments into a realistic weekly plan.", prompt: "Look at my goals, open decisions and anything I've told you about my commitments. Build a realistic plan for this week: top 3 priorities, a day-by-day schedule, and what to say no to." },
+  { id: "p-inbox", personal: true, tag: "Personal", role: "ceo_assistant", title: "Draft my replies", blurb: "Drafts polite replies to messages you paste in.", prompt: "I will paste messages I need to answer. For each one, draft a short reply in my tone, and flag anything that needs a decision from me first." },
+  { id: "p-budget", personal: true, tag: "Personal", role: "finance", title: "Monthly budget check", blurb: "Spots overspending and suggests a simple plan.", prompt: "Ask me for this month's income and spending by category, then show where I'm over, suggest three realistic cuts, and a savings target." },
+  { id: "p-trip", personal: true, tag: "Personal", role: "ceo_assistant", title: "Plan a trip", blurb: "Itinerary, budget and packing list.", prompt: "Ask me where, when and my budget, then draft a day-by-day itinerary, a cost estimate and a packing checklist." },
+  { id: "p-study", personal: true, tag: "Personal", role: "ceo_assistant", title: "Study plan", blurb: "A schedule to learn something by a deadline.", prompt: "Ask what I want to learn and by when, then create a weekly study plan with milestones and short practice tasks." },
+  { id: "p-meals", personal: true, tag: "Personal", role: "ceo_assistant", title: "Meal plan & groceries", blurb: "A week of meals and a shopping list.", prompt: "Ask about my diet, time and budget, then plan seven days of meals and a grouped grocery list." },
 ];

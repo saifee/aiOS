@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0
+
+- Fix: "Body cannot be empty" 400 on Talk to us / Manage payment. Requests without a body no longer send a JSON content-type.
+- Manage payment only shows when a Stripe subscription exists; Talk to us opens an email to CONTACT_EMAIL (or the first SUPERADMIN_EMAILS entry).
+- Fix: `AiKey` / missing-table errors on older databases. Tables are created automatically at start (AUTO_SCHEMA=false disables); missing-table errors now return a clear 503.
+- Multiple companies (up to 25) with an Add company button.
+- Personal space mode: assistant for individuals with no company (personal recipes and command ideas, no company-only sections).
+- WhatsApp Business Cloud API per company: Settings -> Integrations (save, test, webhook URL, verify token), per-company signature checking and sending.
+
 ## 1.2.0 — 2026-10-17
 - Superadmin console: view all users, their workspaces and subscriptions, allocate plans, record manual payments (Settings → Users & subscriptions).
 - Settings → Payment methods: Stripe (keys encrypted, write-only) and manual methods such as bank transfer; customers see them under Plan & billing.

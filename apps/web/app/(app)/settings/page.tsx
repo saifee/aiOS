@@ -1,18 +1,20 @@
 "use client";
-import { Building2, CreditCard, KeyRound, Landmark, ShieldCheck } from "lucide-react";
+import { Building2, CreditCard, KeyRound, Landmark, Plug, ShieldCheck } from "lucide-react";
 import { PageHeader, Tabs, TabDef } from "@/components/Tabs";
 import { useHashTab, useMe } from "@/lib/hooks";
 import { BusinessView } from "@/components/views/BusinessView";
 import { KeysView } from "@/components/views/KeysView";
 import { BillingView } from "@/components/views/BillingView";
+import { IntegrationsView } from "@/components/views/IntegrationsView";
 import { AdminView } from "@/components/views/AdminView";
 import { PaymentMethodsView } from "@/components/views/PaymentMethodsView";
 
-const IDS = ["business", "keys", "plan", "payments", "admin"] as const;
+const IDS = ["business", "keys", "integrations", "plan", "payments", "admin"] as const;
 type Id = (typeof IDS)[number];
 const ALL: TabDef<Id>[] = [
   { id: "business", label: "Business", icon: Building2 },
   { id: "keys", label: "AI keys", icon: KeyRound },
+  { id: "integrations", label: "Integrations", icon: Plug },
   { id: "plan", label: "Plan & billing", icon: CreditCard },
   { id: "payments", label: "Payment methods", icon: Landmark },
   { id: "admin", label: "Users & subscriptions", icon: ShieldCheck },
@@ -30,6 +32,7 @@ export default function Settings() {
       <Tabs tabs={tabs} value={active} onChange={setTab} />
       {active === "business" && <BusinessView />}
       {active === "keys" && <KeysView />}
+      {active === "integrations" && <IntegrationsView />}
       {active === "plan" && <BillingView />}
       {active === "payments" && me?.superadmin && <PaymentMethodsView />}
       {active === "admin" && me?.superadmin && <AdminView />}

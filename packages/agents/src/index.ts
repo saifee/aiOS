@@ -11,3 +11,5 @@ export * from "./swarm";
 export * from "./jobqueue";
 export * from "./aiservice";
 export * from "./llm";
+
+export * from "./channels";

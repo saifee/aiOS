@@ -6,8 +6,11 @@
  */
 const BASE = "https://graph.facebook.com/v20.0";
 
-export async function sendWhatsAppTemplate(to: string, templateName: string, lang: string, params: string[]) {
-  return waPost({
+/** Per-business WhatsApp credentials (Settings → Integrations). Falls back to the server-wide environment variables. */
+export type WhatsAppCfg = { phoneNumberId: string; token: string };
+
+export async function sendWhatsAppTemplate(to: string, templateName: string, lang: string, params: string[], cfg?: WhatsAppCfg | null) {
+  return waPost(cfg, {
     messaging_product: "whatsapp", to, type: "template",
     template: {
       name: templateName, language: { code: lang },
@@ -16,14 +19,17 @@ export async function sendWhatsAppTemplate(to: string, templateName: string, lan
   });
 }
 
-export async function sendWhatsAppText(to: string, body: string) {
-  return waPost({ messaging_product: "whatsapp", to, type: "text", text: { body } });
+export async function sendWhatsAppText(to: string, body: string, cfg?: WhatsAppCfg | null) {
+  return waPost(cfg, { messaging_product: "whatsapp", to, type: "text", text: { body } });
 }
 
-async function waPost(payload: unknown): Promise<{ providerId?: string }> {
-  const res = await fetch(`${BASE}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+async function waPost(cfg: WhatsAppCfg | null | undefined, payload: unknown): Promise<{ providerId?: string }> {
+  const phoneNumberId = cfg?.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const token = cfg?.token || process.env.WHATSAPP_CLOUD_TOKEN;
+  if (!phoneNumberId || !token) throw new Error("WhatsApp is not connected. Add your Cloud API details under Settings → Integrations.");
+  const res = await fetch(`${BASE}/${encodeURIComponent(phoneNumberId)}/messages`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.WHATSAPP_CLOUD_TOKEN}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   const json: any = await res.json();

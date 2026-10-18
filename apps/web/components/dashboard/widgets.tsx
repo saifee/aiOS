@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, BookMarked, Check, CheckCircle2, Circle, Coins, Gauge, Gavel, KeyRound, LayoutList, ListChecks, Plus, Rocket, ShieldCheck, Sparkles, Target, Terminal, Trash2, Users, Wand2, type LucideIcon } from "lucide-react";
 import { api, businessId, fetcher } from "@/lib/api";
-import { useMe } from "@/lib/hooks";
+import { useMe, useIsPersonal } from "@/lib/hooks";
 import { toast } from "@/lib/toast";
 import { FEATURED, metaFor } from "@/lib/agents";
 import { RECIPES } from "@/lib/recipes";
@@ -29,9 +29,9 @@ const useBiz = () => businessId();
 
 // ── Ask your company ───────────────────────────────────────────
 function CommandBar() {
-  const bid = useBiz(); const { data: me } = useMe();
+  const bid = useBiz(); const { data: me } = useMe(); const personal = useIsPersonal();
   const [cmd, setCmd] = useState(""); const [busy, setBusy] = useState(false); const [reply, setReply] = useState("");
-  const ideas = ["Show me which leads are hottest", "Follow up with everyone who got a proposal", "What needs my attention today?"];
+  const ideas = personal ? ["Plan my day around my priorities", "Draft a polite reply to a message I paste", "Help me set a monthly budget"] : ["Show me which leads are hottest", "Follow up with everyone who got a proposal", "What needs my attention today?"];
   async function run(text = cmd) {
     if (!text.trim() || !bid) return;
     setBusy(true); setReply("");
@@ -41,9 +41,9 @@ function CommandBar() {
   }
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-navy via-[#17306E] to-[#4B3AA8] p-5 text-white shadow-card">
-      <h3 className="flex items-center gap-2 text-sm font-bold"><Terminal className="h-4 w-4 text-[#9DB0FF]" />Tell your company what to do</h3>
+      <h3 className="flex items-center gap-2 text-sm font-bold"><Terminal className="h-4 w-4 text-[#9DB0FF]" />{personal ? "Tell your assistant what to do" : "Tell your company what to do"}</h3>
       <div className="mt-3 flex gap-2">
-        <input className="h-11 flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/45 focus:border-white/60 focus:outline-none" placeholder="e.g. Follow up with every lead that went quiet this month" value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()} />
+        <input className="h-11 flex-1 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/45 focus:border-white/60 focus:outline-none" placeholder={personal ? "e.g. Plan my week and remind me about the dentist" : "e.g. Follow up with every lead that went quiet this month"} value={cmd} onChange={(e) => setCmd(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()} />
         <button className="btn h-11 bg-white !text-navy" onClick={() => run()} disabled={busy}>{busy ? "Working…" : "Run"}</button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">{ideas.map((i) => <button key={i} className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/70 hover:bg-white/10" onClick={() => run(i)}>{i}</button>)}</div>

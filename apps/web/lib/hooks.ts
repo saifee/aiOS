@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
-import { fetcher } from "./api";
+import { fetcher, businessId } from "./api";
 
 export type Me = { user: { id: string; email: string; name?: string }; tenant: { id: string; name: string }; plan: string; planName: string; byokOnly: boolean; limits: Record<string, number>; aiKeys: number; aiReady: boolean; role: string; superadmin?: boolean };
 export const useMe = () => useSWR<Me>("/me", fetcher, { revalidateOnFocus: false });
@@ -17,4 +17,14 @@ export function useHashTab<T extends string>(valid: readonly T[], fallback: T): 
   }, []);
   const set = useCallback((t: T) => { setTab(t); history.replaceState(null, "", `#${t}`); }, []);
   return [tab, set];
+}
+
+export type Biz = { id: string; name: string; branding?: { kind?: string } | null };
+export const useBusinesses = () => useSWR<Biz[]>("/businesses", fetcher, { revalidateOnFocus: false });
+/** True when the selected space is a Personal assistant space rather than a company. */
+export function useIsPersonal(): boolean {
+  const { data } = useBusinesses();
+  const [id, setId] = useState<string | null>(null);
+  useEffect(() => setId(businessId()), [data]);
+  return data?.find((b) => b.id === id)?.branding?.kind === "personal";
 }

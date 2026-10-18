@@ -78,6 +78,8 @@ export function registerSecurity(app: FastifyInstance) {
   app.setErrorHandler((err: any, req, reply) => {
     if (err instanceof ZodError) return reply.code(400).send({ error: "Invalid request", issues: err.issues.map((i) => ({ path: i.path.join("."), message: i.message })) });
     const status = Number(err.statusCode) >= 400 && Number(err.statusCode) < 600 ? Number(err.statusCode) : 500;
+    if (err?.code === "P2021" || err?.code === "P2022" || /does not exist in the current database/.test(String(err?.message)))
+      { req.log.error({ err }, "database schema out of date"); return reply.code(503).send({ error: "The database is missing a table or column. Restart the app (it repairs itself on start) or run docs/upgrade-existing-database.sql." }); }
     if (status >= 500) { req.log.error({ err }, "request failed"); return reply.code(status).send({ error: "Internal server error" }); }
     return reply.code(status).send({ error: err.message || "Request failed" });
   });

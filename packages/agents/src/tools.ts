@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { prisma } from "@leadhunter/db";
+import { whatsappCfg } from "./channels";
 import { sendEmail, sendWhatsAppText, notifySlack, discoverViaSearch, discoverViaPlaces, generateImage, createAvatarVideo } from "@leadhunter/integrations";
 import { searchKnowledge } from "./memory";
 import { sendAgentMessage, publishEvent, dispatchSwarm } from "./bus";
@@ -58,7 +59,7 @@ export const TOOLS: Record<string, Tool> = {
   send_whatsapp: {
     name: "send_whatsapp", description: "Send a WhatsApp message (only inside an open 24h session).",
     schema: z.object({ to: z.string(), body: z.string() }),
-    handler: async (i) => sendWhatsAppText(i.to, i.body),
+    handler: async (i, ctx) => sendWhatsAppText(i.to, i.body, await whatsappCfg(ctx.businessId)),
   },
   book_meeting: {
     name: "book_meeting", description: "Create a meeting on a lead's record.",

@@ -46,3 +46,23 @@ export async function runMigrations(log: Log) {
     log.error(`Migration failed (app will still start): ${String(e.stderr || e.message).slice(-600)}`);
   }
 }
+
+/**
+ * Runs on every start (unless AUTO_SCHEMA=false). Creates any table that is missing, using the shipped schema.sql
+ * (CREATE TABLE IF NOT EXISTS, so existing data is never touched). This is what repairs an older database that
+ * predates newer features, e.g. "The table `AiKey` does not exist in the current database".
+ */
+export async function ensureSchema(log: Log) {
+  if (process.env.AUTO_SCHEMA === "false") return;
+  try {
+    const file = findSchemaSql();
+    if (!file) { log.error("ensureSchema: schema.sql not found; tables were not checked."); return; }
+    const statements = readFileSync(file, "utf8").split("\n").filter((l) => !l.startsWith("--")).join("\n").split(/;\s*\n/).map((s) => s.trim()).filter((s) => /^CREATE TABLE IF NOT EXISTS/i.test(s));
+    let failed = 0;
+    for (const sql of statements) await prisma.$executeRawUnsafe(sql).catch((e: any) => { failed++; log.error(`ensureSchema: ${sql.slice(0, 60)}… failed: ${String(e.message).slice(0, 200)}`); });
+    for (const sql of PATCHES) await prisma.$executeRawUnsafe(sql).catch(() => {});
+    log.info(`Database schema checked (${statements.length} tables${failed ? `, ${failed} failed` : ""}).`);
+  } catch (e: any) {
+    log.error(`ensureSchema failed (app will still start): ${String(e.message).slice(0, 300)}`);
+  }
+}

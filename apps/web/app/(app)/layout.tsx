@@ -3,9 +3,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useEffect, useState } from "react";
-import { KeyRound, LogOut, Menu, ShieldCheck, User, X } from "lucide-react";
+import { KeyRound, LogOut, Menu, Plus, ShieldCheck, User, X } from "lucide-react";
 import { fetcher, businessId, setBusinessId, token, clearSession } from "@/lib/api";
-import { useMe } from "@/lib/hooks";
+import { useMe, useIsPersonal } from "@/lib/hooks";
+import { AddCompany } from "@/components/AddCompany";
 import { NAV } from "@/lib/nav";
 import { LogoMark, Wordmark } from "@/components/Logo";
 import { SearchBox } from "@/components/SearchBox";
@@ -18,6 +19,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [nav, setNav] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const personal = useIsPersonal();
   const [toasts, setToasts] = useState<T[]>([]);
   const { t } = usePrefs();
   const { data: me, error: meError } = useMe();
@@ -41,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-full flex-col bg-navy text-white">
       <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5"><LogoMark /><Wordmark light /></Link>
       <nav className="flex-1 space-y-1 px-3" aria-label="Main">
-        {NAV.map((n) => {
+        {NAV.filter((n) => !(personal && n.href === "/comms")).map((n) => {
           const on = path.startsWith(n.href); const Icon = n.icon;
           return (
             <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined}
@@ -61,9 +64,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {businesses?.length > 0 && (
           <select aria-label={t("Business")} className="w-full rounded-lg bg-white/10 p-2 text-xs" defaultValue={businessId() ?? ""}
             onChange={(e) => { setBusinessId(e.target.value); window.location.reload(); }}>
-            {businesses.map((b: any) => <option key={b.id} value={b.id} className="text-ink">{b.name}</option>)}
+            {businesses.map((b: any) => <option key={b.id} value={b.id} className="text-ink">{b.branding?.kind === "personal" ? "👤 " : ""}{b.name}</option>)}
           </select>
         )}
+        <button type="button" onClick={() => setAdding(true)} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/20 p-2 text-xs font-semibold text-white/80 hover:bg-white/10"><Plus className="h-3.5 w-3.5" />{t("Add company")}</button>
       </div>
     </div>
   );
@@ -107,6 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
         <main className="p-4 sm:p-8">{children}</main>
       </div>
+      {adding && <AddCompany onClose={() => setAdding(false)} />}
       <div className="pointer-events-none fixed bottom-4 end-4 z-[60] space-y-2" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`pointer-events-auto max-w-sm rounded-xl px-4 py-3 text-sm text-white shadow-lift ${t.kind === "error" ? "bg-danger" : "bg-navy"}`}>{t.message}</div>)}
       </div>

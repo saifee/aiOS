@@ -1,3 +1,4 @@
+import { whatsappCfg } from "@leadhunter/agents";
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
 import { prisma, arr } from "@leadhunter/db";
@@ -85,7 +86,7 @@ export async function outreachProcessor(job: Job) {
         data: { leadId: lead.id, channel: "WHATSAPP", direction: "OUTBOUND", body: gen.body, status: "QUEUED" },
       });
       try {
-        const out = await sendWhatsAppTemplate(lead.whatsapp, "intro_outreach", ctx.language, [contact?.name ?? lead.companyName, b.name]);
+        const out = await sendWhatsAppTemplate(lead.whatsapp, "intro_outreach", ctx.language, [contact?.name ?? lead.companyName, b.name], await whatsappCfg(lead.businessId));
         await prisma.message.update({ where: { id: msg.id }, data: { status: "SENT", sentAt: new Date(), providerId: out.providerId } });
       } catch (e: any) {
         await prisma.message.update({ where: { id: msg.id }, data: { status: "FAILED", meta: { error: String(e.message) } } });
@@ -107,7 +108,7 @@ async function sendExisting(messageId: string) {
   const { lead } = msg;
   try {
     if (msg.channel === "WHATSAPP" && lead.whatsapp) {
-      const out = await sendWhatsAppText(lead.whatsapp, msg.body); // inside 24h service window
+      const out = await sendWhatsAppText(lead.whatsapp, msg.body, await whatsappCfg(lead.businessId)); // inside 24h service window
       await prisma.message.update({ where: { id: msg.id }, data: { status: "SENT", sentAt: new Date(), providerId: out.providerId } });
     } else if (msg.channel === "EMAIL" && lead.contacts[0]?.email) {
       const out = await sendEmail({ to: lead.contacts[0].email, subject: msg.subject ?? `Re: ${lead.business.name}`, html: msg.body, from: senderFor(lead.business), unsubscribeUrl: `${process.env.APP_URL}/u/${lead.id}` });
