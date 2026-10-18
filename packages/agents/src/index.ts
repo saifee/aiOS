@@ -14,3 +14,4 @@ export * from "./llm";
 
 export * from "./channels";
 export * from "./booking";
+export * from "./emailcfg";

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0
+
+- **System email setup** (Settings → Email, superadmin only): connect Gmail / Google Workspace, Outlook / Office 365, any SMTP server, Resend, Mailgun, Mailjet, SendGrid, Brevo, Postmark or Maileroo. Credentials are encrypted; a **Send test email** button shows the provider's real answer. Invitations, daily briefings, booking confirmations, alerts and outreach all use it. If nothing is set up there, the old `SENDGRID_API_KEY` / AWS SES environment settings keep working.
+- **Invite or add users** (Settings → Users & subscriptions → *Invite or add a user*): email an invitation with a one-time join link (valid 7 days) into an existing workspace (Admin / Member / Viewer) or a new workspace, or create the account directly. Pending invitations can be resent (new link) or revoked. If email is not configured the link is shown so it can be shared by hand.
+- New public page `/join` for accepting an invitation. Links are random, stored only as a hash, single-use, and an existing account must be signed in as the invited email.
+- SMTP hosts must be public addresses (set `ALLOW_PRIVATE_SMTP=true` only for a trusted internal relay; that also allows unencrypted SMTP).
+- New database table `Invite` (created automatically on start). New dependency: `nodemailer`.
+
 ## 1.6.3
 
 - Fix: "Manage" on a user in Settings > Users & subscriptions stayed on "Loading". The workspace detail now has the same plain-SQL fallback, a payments/subscription read problem can't block it, saving a plan no longer fails if the workspace's mirrored plan column is odd, and a real error (with a Back button) is shown instead of an endless spinner.

@@ -793,3 +793,18 @@ model Booking {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   @@index([businessId, startsAt])
 }
+
+// Superadmin invitations: the emailed link carries a random token; only its SHA-256 hash is stored.
+model Invite {
+  id          String    @id @default(cuid())
+  email       String
+  tenantId    String?   // join this workspace ...
+  workspace   String?   // ... or get a brand-new workspace with this name (as its owner)
+  role        Role      @default(MEMBER)
+  tokenHash   String    @unique
+  invitedBy   String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  @@index([email])
+}

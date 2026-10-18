@@ -9,9 +9,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.620.0",
+    "nodemailer": "^10.1.7",
     "stripe": "^16.2.0"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
     "vitest": "^5.0.4"
   }
 }

@@ -20,7 +20,7 @@ export async function api<T = any>(path: string, init: RequestInit = {}): Promis
   if (res.status === 401 && typeof window !== "undefined" && !path.startsWith("/auth")) {
     // An expired/invalid token must be dropped, and we must never reload the login page itself (that was an endless refresh loop).
     clearSession();
-    if (!["/login", "/setup", "/"].includes(window.location.pathname.replace(/\/+$/, "") || "/")) window.location.href = "/login";
+    if (!["/login", "/setup", "/", "/join", "/book"].includes(window.location.pathname.replace(/\/+$/, "") || "/")) window.location.href = "/login";
   }
   if (!res.ok) { const j: any = await res.json().catch(() => ({})); throw new Error(j?.error ?? j?.message ?? `API ${res.status}`); }
   return res.json();

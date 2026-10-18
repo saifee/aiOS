@@ -692,3 +692,19 @@ CREATE TABLE IF NOT EXISTS `Booking` (
   INDEX `Booking_businessId_startsAt_idx` (`businessId`, `startsAt`),
   CONSTRAINT `Booking_businessId_fkey` FOREIGN KEY (`businessId`) REFERENCES `Business` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `Invite` (
+  `id` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `tenantId` VARCHAR(191) NULL,
+  `workspace` VARCHAR(191) NULL,
+  `role` ENUM('OWNER','ADMIN','MEMBER','VIEWER') NOT NULL DEFAULT 'MEMBER',
+  `tokenHash` VARCHAR(191) NOT NULL,
+  `invitedBy` VARCHAR(191) NOT NULL,
+  `expiresAt` DATETIME(3) NOT NULL,
+  `acceptedAt` DATETIME(3) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `Invite_tokenHash_key` (`tokenHash`),
+  INDEX `Invite_email_idx` (`email`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

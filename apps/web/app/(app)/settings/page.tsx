@@ -1,5 +1,5 @@
 "use client";
-import { Building2, CreditCard, KeyRound, Landmark, Plug, ShieldCheck } from "lucide-react";
+import { Building2, CreditCard, KeyRound, Landmark, Mail, Plug, ShieldCheck } from "lucide-react";
 import { PageHeader, Tabs, TabDef } from "@/components/Tabs";
 import { useHashTab, useMe } from "@/lib/hooks";
 import { BusinessView } from "@/components/views/BusinessView";
@@ -7,9 +7,10 @@ import { KeysView } from "@/components/views/KeysView";
 import { BillingView } from "@/components/views/BillingView";
 import { IntegrationsView } from "@/components/views/IntegrationsView";
 import { AdminView } from "@/components/views/AdminView";
+import { EmailView } from "@/components/views/EmailView";
 import { PaymentMethodsView } from "@/components/views/PaymentMethodsView";
 
-const IDS = ["business", "keys", "integrations", "plan", "payments", "admin"] as const;
+const IDS = ["business", "keys", "integrations", "plan", "payments", "email", "admin"] as const;
 type Id = (typeof IDS)[number];
 const ALL: TabDef<Id>[] = [
   { id: "business", label: "Business", icon: Building2 },
@@ -17,6 +18,7 @@ const ALL: TabDef<Id>[] = [
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "plan", label: "Plan & billing", icon: CreditCard },
   { id: "payments", label: "Payment methods", icon: Landmark },
+  { id: "email", label: "Email", icon: Mail },
   { id: "admin", label: "Users & subscriptions", icon: ShieldCheck },
 ];
 
@@ -24,7 +26,7 @@ export default function Settings() {
   const [tab, setTab] = useHashTab(IDS, "business");
   const { data: me } = useMe();
   // The payment-method and user-management tabs exist only for the platform superadmin (the API enforces this too).
-  const tabs = ALL.filter((t) => me?.superadmin || (t.id !== "payments" && t.id !== "admin"));
+  const tabs = ALL.filter((t) => me?.superadmin || (t.id !== "payments" && t.id !== "admin" && t.id !== "email"));
   const active: Id = tabs.some((t) => t.id === tab) ? tab : "business";
   return (
     <div className="mx-auto max-w-6xl">
@@ -35,6 +37,7 @@ export default function Settings() {
       {active === "integrations" && <IntegrationsView />}
       {active === "plan" && <BillingView />}
       {active === "payments" && me?.superadmin && <PaymentMethodsView />}
+      {active === "email" && me?.superadmin && <EmailView />}
       {active === "admin" && me?.superadmin && <AdminView />}
     </div>
   );

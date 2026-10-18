@@ -9,6 +9,7 @@ import multipart from "@fastify/multipart";
 import rawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
 import { oauthRoutes } from "./routes/oauth";
+import { inviteRoutes } from "./routes/invite";
 import { bookingRoutes } from "./routes/booking";
 import { chiefRoutes } from "./routes/chief";
 import { setupRoutes } from "./routes/setup";
@@ -83,6 +84,7 @@ async function main() {
   await app.register(setupRoutes, { prefix: "/v1" });   // first-run wizard (unauthenticated)
   await app.register(authRoutes, { prefix: "/v1/auth" });
   await app.register(oauthRoutes, { prefix: "/v1/auth" }); // Google / Microsoft sign-in
+  await app.register(inviteRoutes, { prefix: "/v1" });    // join via emailed invitation
   await app.register(chiefRoutes, { prefix: "/v1" });     // Chief of Staff briefing
   await app.register(bookingRoutes, { prefix: "/v1" });   // built-in booking pages + calendar export
   await app.register(webhookRoutes, { prefix: "/v1/webhooks" }); // unauthenticated (provider-verified)

@@ -2,7 +2,11 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "@leadhunter/db";
 import { z } from "zod";
 import { PLANS } from "@leadhunter/integrations";
-import { invalidatePlan } from "@leadhunter/agents";
+import { invalidatePlan, loadEmailSetting, saveEmailSetting, emailAdminView, emailRuntime } from "@leadhunter/agents";
+import { sendEmail, EMAIL_PROVIDERS } from "@leadhunter/integrations";
+import argon2 from "../lib/password";
+import { weakPassword } from "../lib/passwords";
+import { INVITE_DAYS, hashToken, inviteHtml, joinLink, newInviteToken } from "../lib/invites";
 import { requireSuperAdmin } from "../lib/superadmin";
 import { loadPaymentConfig, savePaymentConfig, adminView } from "../lib/payments";
 
@@ -200,5 +204,118 @@ export async function adminRoutes(app: FastifyInstance) {
     }).parse(req.body);
     try { const cfg = await savePaymentConfig(b as any); await audit((await db.membership.findFirst({ where: { userId: req.auth!.userId }, select: { tenantId: true } }))?.tenantId ?? "", req.auth!.userId, "admin.payment-methods.update", null, { stripeEnabled: cfg.stripe.enabled, manual: cfg.manual.length }); return { ok: true, ...adminView(cfg) }; }
     catch (e: any) { return reply.code(e.statusCode ?? 500).send({ error: e.message }); }
+  });
+
+  // ── Email provider (system + invitation mail) ──────────────
+  const emailBody = z.object({
+    enabled: z.boolean(), provider: z.enum(EMAIL_PROVIDERS),
+    fromEmail: z.string().trim().email().max(254), fromName: z.string().trim().max(80).optional(), replyTo: z.union([z.string().trim().email().max(254), z.literal("")]).optional(),
+    user: z.string().trim().max(254).optional(), host: z.string().trim().max(253).regex(/^[A-Za-z0-9.-]*$/, "Enter a host name such as smtp.example.com").optional(),
+    port: z.number().int().min(1).max(65535).optional(), secure: z.boolean().optional(),
+    domain: z.string().trim().max(253).regex(/^[A-Za-z0-9.-]*$/).optional(), region: z.enum(["us", "eu"]).optional(),
+    secret: z.string().max(500).optional(), secret2: z.string().max(500).optional(),
+  }).strict();
+
+  app.get("/admin/email", async () => emailAdminView(await loadEmailSetting(true)));
+  app.put("/admin/email", async (req, reply) => {
+    const b = emailBody.parse(req.body);
+    const cur = await loadEmailSetting(true);
+    if (b.enabled) {
+      const smtpLike = ["smtp", "gmail", "outlook", "maileroo"].includes(b.provider);
+      const have = (v?: string, stored?: boolean) => !!v || !!stored;
+      const same = cur?.provider === b.provider;
+      if (b.provider === "smtp" && !b.host) return reply.code(400).send({ error: "Enter the SMTP server host." });
+      if (smtpLike && !b.user) return reply.code(400).send({ error: "Enter the username (usually the full email address)." });
+      if (!have(b.secret, same && !!cur?.secretEnc)) return reply.code(400).send({ error: smtpLike ? "Enter the password (for Gmail / Outlook use an app password)." : "Enter the API key." });
+      if (b.provider === "mailjet" && !have(b.secret2, same && !!cur?.secret2Enc)) return reply.code(400).send({ error: "Mailjet needs both the API key and the secret key." });
+      if (b.provider === "mailgun" && !b.domain) return reply.code(400).send({ error: "Enter your Mailgun sending domain." });
+    }
+    await saveEmailSetting({ ...b, replyTo: b.replyTo || undefined });
+    await audit("platform", req.auth!.userId, "admin.email.set", b.provider, { provider: b.provider, enabled: b.enabled, fromEmail: b.fromEmail });
+    return emailAdminView(await loadEmailSetting(true));
+  });
+  app.post("/admin/email/test", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const { to } = z.object({ to: z.string().trim().email().max(254) }).parse(req.body);
+    try {
+      const cfgOk = await emailRuntime();
+      const out = await sendEmail({ to, subject: "aiOS test email", html: "<p>This is a test message from aiOS. If you can read it, system email is working.</p>", from: cfgOk?.fromEmail ?? process.env.DEFAULT_FROM_EMAIL ?? "noreply@aios.app", system: true });
+      return { ok: true, provider: out.provider };
+    } catch (e: any) { return reply.code(400).send({ error: String(e?.message ?? "Send failed").slice(0, 400) }); }
+  });
+
+  // ── Invitations ────────────────────────────────────────────
+  const inviteBody = z.object({
+    email: z.string().trim().toLowerCase().email().max(254),
+    tenantId: z.string().min(1).max(64).optional(), workspace: z.string().trim().min(1).max(120).optional(),
+    role: z.enum(["ADMIN", "MEMBER", "VIEWER"]).default("MEMBER"),
+  }).strict().refine((v) => !!v.tenantId !== !!v.workspace, "Choose an existing workspace or name a new one");
+
+  async function deliver(inv: any, token: string, inviterId: string) {
+    const inviter = await db.user.findUnique({ where: { id: inviterId }, select: { name: true, email: true } });
+    const ws = inv.tenantId ? (await db.tenant.findUnique({ where: { id: inv.tenantId }, select: { name: true } }))?.name : inv.workspace;
+    const link = joinLink(token);
+    try {
+      const cfg = await emailRuntime();
+      await sendEmail({ to: inv.email, subject: `${inviter?.name || "An administrator"} invited you to aiOS`, system: true,
+        html: inviteHtml({ inviter: inviter?.name || inviter?.email || "An administrator", workspace: ws || "aiOS", role: inv.tenantId ? inv.role : undefined, link, days: INVITE_DAYS }),
+        from: cfg?.fromEmail ?? process.env.DEFAULT_FROM_EMAIL ?? "noreply@aios.app" });
+      return { link, emailSent: true as const };
+    } catch (e: any) { return { link, emailSent: false as const, emailError: String(e?.message ?? "Could not send").slice(0, 300) }; }
+  }
+
+  app.get("/admin/invites", async () => {
+    const rows = await db.invite.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+    const tIds = [...new Set(rows.map((r: any) => r.tenantId).filter(Boolean))] as string[];
+    const ts = tIds.length ? await db.tenant.findMany({ where: { id: { in: tIds } }, select: { id: true, name: true } }) : [];
+    const name = new Map<string, string>(ts.map((t: any) => [t.id, t.name]));
+    return rows.map((r: any) => ({ id: r.id, email: r.email, role: r.tenantId ? r.role : "OWNER", workspace: r.tenantId ? name.get(r.tenantId) ?? "(deleted)" : `${r.workspace} (new)`,
+      status: r.acceptedAt ? "accepted" : new Date(r.expiresAt) < new Date() ? "expired" : "pending", expiresAt: r.expiresAt, createdAt: r.createdAt }));
+  });
+
+  app.post("/admin/invites", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const b = inviteBody.parse(req.body);
+    if (b.tenantId) {
+      const t = await db.tenant.findUnique({ where: { id: b.tenantId }, select: { id: true } });
+      if (!t) return reply.code(404).send({ error: "Workspace not found" });
+      const u = await db.user.findUnique({ where: { email: b.email }, select: { id: true } });
+      if (u && await db.membership.findFirst({ where: { tenantId: b.tenantId, userId: u.id }, select: { id: true } })) return reply.code(409).send({ error: "That person is already in this workspace." });
+    }
+    const token = newInviteToken();
+    const inv = await db.invite.create({ data: { email: b.email, tenantId: b.tenantId ?? null, workspace: b.workspace ?? null, role: b.role, tokenHash: hashToken(token), invitedBy: req.auth!.userId, expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000) } });
+    await audit(b.tenantId ?? "platform", req.auth!.userId, "admin.invite.create", inv.id, { email: b.email, role: b.role });
+    return reply.code(201).send({ id: inv.id, ...(await deliver(inv, token, req.auth!.userId)) });
+  });
+
+  // New link + new email (the old link stops working)
+  app.post("/admin/invites/:id/resend", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
+    const { id } = Id.parse(req.params);
+    const inv = await db.invite.findUnique({ where: { id } });
+    if (!inv || inv.acceptedAt) return reply.code(404).send({ error: "Invitation not found or already accepted." });
+    const token = newInviteToken();
+    const next = await db.invite.update({ where: { id }, data: { tokenHash: hashToken(token), expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000) } });
+    return { id, ...(await deliver(next, token, req.auth!.userId)) };
+  });
+  app.delete("/admin/invites/:id", async (req, reply) => {
+    const { id } = Id.parse(req.params);
+    const r = await db.invite.deleteMany({ where: { id, acceptedAt: null } });
+    if (!r.count) return reply.code(404).send({ error: "Invitation not found or already accepted." });
+    return { ok: true };
+  });
+
+  // ── Add a user directly (no email step) ────────────────────
+  app.post("/admin/users", async (req, reply) => {
+    const b = z.object({
+      email: z.string().trim().toLowerCase().email().max(254), name: z.string().trim().min(1).max(120), password: z.string().min(10).max(200),
+      tenantId: z.string().min(1).max(64).optional(), workspace: z.string().trim().min(1).max(120).optional(), role: z.enum(["ADMIN", "MEMBER", "VIEWER"]).default("MEMBER"),
+    }).strict().refine((v) => !!v.tenantId !== !!v.workspace, "Choose an existing workspace or name a new one").parse(req.body);
+    const weak = weakPassword(b.password, b.email, b.name);
+    if (weak) return reply.code(400).send({ error: weak });
+    if (await db.user.findUnique({ where: { email: b.email }, select: { id: true } })) return reply.code(409).send({ error: "An account with this email already exists." });
+    if (b.tenantId && !(await db.tenant.findUnique({ where: { id: b.tenantId }, select: { id: true } }))) return reply.code(404).send({ error: "Workspace not found" });
+    const passwordHash = await argon2.hash(b.password);
+    const slug = (b.workspace ?? "ws").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) + "-" + Date.now().toString(36);
+    const u = await db.user.create({ data: { email: b.email, name: b.name, passwordHash, memberships: { create: b.tenantId ? { role: b.role, tenantId: b.tenantId } : { role: "OWNER", tenant: { create: { name: b.workspace!, slug } } } } }, include: { memberships: true } });
+    await audit(u.memberships[0].tenantId, req.auth!.userId, "admin.user.create", u.id, { email: b.email });
+    return reply.code(201).send({ id: u.id, email: u.email });
   });
 }
