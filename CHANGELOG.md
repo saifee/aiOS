@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+
+- Fix: login page refreshing endlessly in Chrome, Samsung Internet and other browsers. A saved but expired sign-in made the page's own background request fail with 401, which reloaded /login forever. Expired tokens are now cleared and the login page is never reloaded.
+
 ## 1.4.1
 
 - Fix: login page refreshing in a loop on phones. Pages are now served with `Cache-Control: no-cache` (so a phone never keeps an old page pointing at deleted files after a redeploy) and build files with long-lived immutable caching.
