@@ -11,6 +11,18 @@ import { PLANS, PlanKey, decrypt, assertPublicUrl, allowPrivateAiUrls } from "@l
  *  • Free plan = BYOK only: the platform's own keys are never used for FREE workspaces.
  *  • Paid plans use the user's keys first, then fall back to the platform's keys.
  */
+
+/** A model id is one token such as "gpt-4o-mini" or "meta-llama/llama-3.3-70b". Anything with spaces or commas (pasted from a dropdown) is not usable. */
+export const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,118}$/;
+const GEMINI_ALIASES: Record<string, string> = { "gemini-flash": "gemini-flash-latest", "flash": "gemini-flash-latest", "gemini-pro": "gemini-pro-latest", "pro": "gemini-pro-latest" };
+/** Returns a model the provider will accept, or undefined so the caller falls back to the provider's default. */
+export function usableModel(kind: string, model?: string | null): string | undefined {
+  let m = (model ?? "").trim();
+  if (kind === "gemini") m = m.replace(/^models\//, "");
+  if (!m || !MODEL_RE.test(m)) return undefined;
+  return kind === "gemini" ? (GEMINI_ALIASES[m.toLowerCase()] ?? m) : m;
+}
+
 export type Kind = "anthropic" | "openai" | "gemini";
 export type ProviderSpec = { label: string; kind: Kind; base?: string; model: string; tools: boolean; free?: boolean; json?: boolean; keyUrl: string; note?: string };
 
@@ -84,7 +96,7 @@ async function resolveChain(prefer?: string): Promise<Entry[]> {
     for (const [rows, source] of [[mine, "user"], [team, "team"]] as const)
       for (const r of rows) {
         const spec = PROVIDERS[r.provider]; if (!spec) continue;
-        try { out.push({ id: r.id, provider: r.provider, spec, key: decrypt(r.keyEnc), model: r.model || spec.model, base: r.baseUrl || spec.base, source }); } catch { /* unreadable (ENCRYPTION_KEY changed) — skip */ }
+        try { out.push({ id: r.id, provider: r.provider, spec, key: decrypt(r.keyEnc), model: usableModel(spec.kind, r.model) || spec.model, base: r.baseUrl || spec.base, source }); } catch { /* unreadable (ENCRYPTION_KEY changed) — skip */ }
       }
   }
   const byok = await isByokOnly(ctx?.tenantId);
@@ -200,7 +212,7 @@ export async function testKey(provider: string, key: string, model?: string, bas
   if (!spec) return { ok: false, ms: 0, error: "Unknown provider" };
   const t0 = Date.now();
   try {
-    const e: Entry = { provider, spec, key, model: model || spec.model, base: baseUrl || spec.base, source: "user" };
+    const e: Entry = { provider, spec, key, model: usableModel(spec.kind, model) || spec.model, base: baseUrl || spec.base, source: "user" };
     await callEntry(e, { turns: [{ role: "user", text: "Reply with the single word: OK" }], maxTokens: 16 });
     return { ok: true, ms: Date.now() - t0 };
   } catch (err: any) {

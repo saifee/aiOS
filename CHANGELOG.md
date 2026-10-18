@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.1
+
+- Fix: AI key tests failing with "unexpected model name format" or "model not found". Model names are now validated (one model ID, no spaces or commas); bad values already saved (for example text pasted from a dropdown) are ignored and the provider default is used instead. Gemini shorthand such as `gemini-flash` is repaired automatically.
+- New: "Use the default model" button on a key, and "Re-enter this key" when a saved key can no longer be decrypted (the server's `ENCRYPTION_KEY` changed after it was saved). Keep `ENCRYPTION_KEY` the same forever once keys are stored.
+
 ## 1.6.0 (security)
 
 - **CAPTCHA** on sign-in, sign-up, first-run setup and public booking: Cloudflare Turnstile or Google reCAPTCHA v2 (`CAPTCHA_PROVIDER`, `CAPTCHA_SITE_KEY`, `CAPTCHA_SECRET`). Off until configured; the app warns when it is off in production.

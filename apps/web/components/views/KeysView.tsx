@@ -14,6 +14,7 @@ export function KeysView() {
   const { data, mutate } = useSWR<{ encryptionReady: boolean; keys: any[] }>("/ai/keys", fetcher);
   const [form, setForm] = useState<{ provider: string; key: string; label: string; model: string; baseUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [replaceId, setReplaceId] = useState<string | null>(null); // a saved key that can no longer be read: its replacement removes it
   const keys = data?.keys ?? [];
   const prov = (id: string) => providers?.find((p) => p.id === id);
 
@@ -23,6 +24,7 @@ export function KeysView() {
     try {
       const r = await api("/ai/keys", { method: "POST", body: JSON.stringify({ provider: form.provider, key: form.key, label: form.label || undefined, model: form.model || undefined, baseUrl: form.baseUrl || undefined }) });
       toast(r.test?.ok ? `${prov(form.provider)?.label} key added and working (${r.test.ms} ms).` : `Key saved, but the test failed: ${r.test?.error}`, r.test?.ok ? "info" : "error");
+      if (replaceId) { await api(`/ai/keys/${replaceId}`, { method: "DELETE" }).catch(() => {}); setReplaceId(null); }
       setForm(null); mutate(); mutateMe();
     } catch (e: any) { toast(e.message, "error"); }
     setBusy(false);
@@ -69,6 +71,8 @@ export function KeysView() {
                   <div className="text-xs text-ink/50">••••{k.hint} · {k.model || p?.model || "default model"}</div>
                   {k.lastError ? <div className="mt-1 flex items-start gap-1 text-xs text-danger"><XCircle className="mt-0.5 h-3 w-3 shrink-0" />{k.lastError}</div>
                     : ok ? <div className="mt-1 flex items-center gap-1 text-xs text-ok"><CheckCircle2 className="h-3 w-3" />Working · checked {new Date(k.lastOkAt).toLocaleString()}</div> : null}
+                  {/decrypt/i.test(k.lastError ?? "") && <button className="mt-1 text-xs font-semibold text-signal underline" onClick={() => { setReplaceId(k.id); setForm({ provider: k.provider, key: "", label: k.label ?? "", model: "", baseUrl: k.baseUrl ?? "" }); }}>Re-enter this key</button>}
+                  {k.model && <button className="ms-3 mt-1 text-xs font-semibold text-signal underline" onClick={async () => { await patch(k.id, { model: null }); test(k.id); }}>Use the default model</button>}
                 </div>
                 <div className="flex items-center gap-1">
                   <button className="btn-ghost px-2" aria-label="Move up" onClick={() => move(i, -1)} disabled={i === 0}><ArrowUp className="h-4 w-4" /></button>
@@ -104,7 +108,7 @@ export function KeysView() {
             {prov(form.provider)?.keyUrl && <a className="inline-flex items-center gap-1 text-xs text-signal" href={prov(form.provider)!.keyUrl} target="_blank" rel="noreferrer">Get a key from {prov(form.provider)!.label}<ExternalLink className="h-3 w-3" /></a>}
             <input className="input" type="password" autoComplete="off" autoFocus placeholder="Paste your API key" value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} />
             {prov(form.provider)?.custom && <input className="input" placeholder="Base URL, e.g. http://localhost:11434/v1" value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} />}
-            <input className="input" placeholder={`Model (optional, default ${prov(form.provider)?.model || "required"})`} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+            <input className="input" placeholder={`Model (optional, default ${prov(form.provider)?.model || "required"})`} title="One model ID only, e.g. gpt-4o-mini. Leave blank to use the default." value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
             <input className="input" placeholder="Label (optional)" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
             <button className="btn w-full" onClick={add} disabled={busy || form.key.length < 8}>{busy ? "Testing key…" : "Save and test"}</button>
           </div>

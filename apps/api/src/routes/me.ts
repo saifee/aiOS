@@ -4,7 +4,7 @@ import { z } from "zod";
 import { PLANS, PlanKey, encrypt, encryptionConfigured, assertPublicUrl, allowPrivateAiUrls } from "@leadhunter/integrations";
 import { securityWarnings } from "../lib/security";
 import { isSuperAdmin } from "../lib/superadmin";
-import { PROVIDERS, testKey, invalidateKeys, invalidatePlan } from "@leadhunter/agents";
+import { PROVIDERS, testKey, invalidateKeys, invalidatePlan, MODEL_RE } from "@leadhunter/agents";
 
 const encryptionReady = encryptionConfigured;
 const hasPlatformAi = () => !!(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY);
@@ -54,7 +54,7 @@ export async function meRoutes(app: FastifyInstance) {
     const b = z.object({
       provider: z.string().refine((p) => p in PROVIDERS, "Unknown provider"),
       key: z.string().min(8).max(400).transform((s) => s.trim()),
-      label: z.string().max(60).optional(), model: z.string().max(120).optional(),
+      label: z.string().max(60).optional(), model: z.string().trim().max(120).optional().refine((m) => !m || MODEL_RE.test(m.replace(/^models\//, "")), "Model must be a single model ID such as gpt-4o-mini (no spaces or commas). Leave it blank to use the default."),
       baseUrl: z.string().url().max(300).optional(), shared: z.boolean().default(true),
     }).parse(req.body);
     if (b.provider === "custom" && !b.baseUrl) return reply.code(400).send({ error: "Custom providers need a base URL (e.g. http://host:11434/v1)." });
@@ -101,7 +101,7 @@ export async function meRoutes(app: FastifyInstance) {
 
   app.patch("/ai/keys/:id", async (req) => {
     const { id } = req.params as any;
-    const b = z.object({ enabled: z.boolean().optional(), shared: z.boolean().optional(), label: z.string().max(60).optional(), model: z.string().max(120).nullable().optional() }).parse(req.body);
+    const b = z.object({ enabled: z.boolean().optional(), shared: z.boolean().optional(), label: z.string().max(60).optional(), model: z.string().trim().max(120).nullable().optional().refine((m) => !m || MODEL_RE.test(m.replace(/^models\//, "")), "Model must be a single model ID such as gpt-4o-mini (no spaces or commas). Leave it blank to use the default.") }).parse(req.body);
     const own = await prisma.aiKey.findFirst({ where: { id, userId: req.auth!.userId }, select: { id: true } });
     if (!own) throw Object.assign(new Error("Key not found"), { statusCode: 404 });
     const row = await prisma.aiKey.update({ where: { id }, data: b });
