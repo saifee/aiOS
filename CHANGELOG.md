@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1
+
+- Fix: login page refreshing in a loop on phones. Pages are now served with `Cache-Control: no-cache` (so a phone never keeps an old page pointing at deleted files after a redeploy) and build files with long-lived immutable caching.
+- Google Fonts are now allowed by the content security policy, so the intended fonts load.
+
 ## 1.4.0
 
 - Sign in with Google and Microsoft (work or personal accounts). Buttons appear on the login page once the client ID and secret are set; see `.env.example`.

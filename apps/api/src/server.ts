@@ -129,6 +129,12 @@ async function main() {
       const candidates = extname(urlPath) ? [clean] : [`${clean}.html`, `${clean}/index.html`, "index.html"];
       for (const c of candidates) {
         const full = safeFile(c);
+        if (full) {
+          // Pages must always be revalidated (a phone holding an old page that points at deleted chunks makes Next reload forever);
+          // hashed build files never change, so they can be cached hard.
+          const immutable = /[\\/]_next[\\/]static[\\/]/.test(full);
+          reply.header("Cache-Control", immutable ? "public, max-age=31536000, immutable" : "no-cache");
+        }
         if (full) return reply.type(MIME[extname(full)] || "application/octet-stream").send(readFileSync(full));
       }
       return reply.code(404).send("Not found");

@@ -56,8 +56,8 @@ export function securityWarnings(): string[] {
 export const CSP = [
   "default-src 'self'", "base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'", "form-action 'self'",
   // Next.js static export emits inline bootstrap scripts; nonces need SSR. Documented residual risk.
-  "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob: https:",
-  "font-src 'self' data:", "connect-src 'self'",
+  "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com", "connect-src 'self'",
 ].join("; ");
 
 export function registerSecurity(app: FastifyInstance) {
