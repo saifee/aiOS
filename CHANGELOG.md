@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+
+- Fix: Google Gemini keys failed their test with "model gemini-2.0-flash is no longer available". The default is now the always-current `gemini-flash-latest`. Existing Gemini keys pick this up automatically (press Test again after updating); a key with its own model name typed in keeps it.
+
 ## 1.5.0
 
 - **Chief of Staff** on the dashboard: a daily briefing (meetings, new leads, approvals, overdue tasks, failed AI runs) shown when you sign in, with a chat box for follow-up questions. Optional daily email at a time you choose, plus "Email it now". Email needs `SENDGRID_API_KEY` (or SES) and `DEFAULT_FROM_EMAIL`.
