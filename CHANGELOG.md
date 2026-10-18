@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2
+
+- Fix: Settings > Users & subscriptions showed "Internal server error" and no workspaces. The list now falls back to a plain-SQL query if the normal one fails, a subscription lookup problem can no longer hide the list, and any remaining failure shows the real reason (superadmin only) instead of a generic message.
+
 ## 1.6.1
 
 - Fix: AI key tests failing with "unexpected model name format" or "model not found". Model names are now validated (one model ID, no spaces or commas); bad values already saved (for example text pasted from a dropdown) are ignored and the provider default is used instead. Gemini shorthand such as `gemini-flash` is repaired automatically.

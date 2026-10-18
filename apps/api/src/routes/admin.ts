@@ -23,8 +23,23 @@ export async function adminRoutes(app: FastifyInstance) {
     db.auditLog.create({ data: { tenantId, actor, action, target, detail } }).catch(() => {});
 
   // ── Users (with their workspaces + subscription) ───────────
-  app.get("/admin/users", async (req) => {
+  app.get("/admin/users", async (req, reply) => {
     const { q, page } = z.object({ q: z.string().max(100).optional(), page: z.coerce.number().int().min(1).max(10_000).default(1) }).parse(req.query);
+    try {
+      return await listUsers(q, page);
+    } catch (err: any) {
+      req.log.error({ err }, "admin/users primary query failed, trying raw fallback");
+      try {
+        return await listUsersRaw(q, page);
+      } catch (err2: any) {
+        req.log.error({ err: err2 }, "admin/users fallback failed");
+        // Superadmin-only route: showing the real reason is safe and makes the problem fixable.
+        return reply.code(500).send({ error: `Could not load users: ${String(err2?.message || err?.message || "unknown").split("\n").filter(Boolean).slice(-1)[0].slice(0, 300)}` });
+      }
+    }
+  });
+
+  async function listUsers(q: string | undefined, page: number) {
     const where = q ? { OR: [{ email: { contains: q } }, { name: { contains: q } }] } : {};
     const [total, users] = await Promise.all([
       db.user.count({ where }),
@@ -34,19 +49,48 @@ export async function adminRoutes(app: FastifyInstance) {
       }),
     ]);
     const tenantIds = [...new Set(users.flatMap((u: any) => u.memberships.map((m: any) => m.tenant.id)))] as string[];
-    const subs = tenantIds.length ? await db.subscription.findMany({ where: { tenantId: { in: tenantIds } } }) : [];
+    // A subscription lookup problem must not hide the user list.
+    const subs = tenantIds.length ? await db.subscription.findMany({ where: { tenantId: { in: tenantIds } } }).catch(() => []) : [];
     const subBy = new Map<string, any>(subs.map((s: any) => [s.tenantId, s]));
     return {
       total, page,
       users: users.map((u: any) => ({
         id: u.id, email: u.email, name: u.name, createdAt: u.createdAt,
-        workspaces: u.memberships.map((m: any) => {
+        workspaces: u.memberships.filter((m: any) => m.tenant).map((m: any) => {
           const s = subBy.get(m.tenant.id);
           return { id: m.tenant.id, name: m.tenant.name, role: m.role, plan: s?.plan ?? m.tenant.plan, status: s?.status ?? "none", currentPeriodEnd: s?.currentPeriodEnd ?? null };
         }),
       })),
     };
-  });
+  }
+
+  // Plain-SQL fallback: tolerates odd data (e.g. an enum value Prisma can't map) and older table layouts.
+  async function listUsersRaw(q: string | undefined, page: number) {
+    const like = q ? `%${q}%` : null;
+    const w = like ? "WHERE email LIKE ? OR name LIKE ?" : "";
+    const args = like ? [like, like] : [];
+    const totalRows: any[] = await db.$queryRawUnsafe(`SELECT COUNT(*) AS c FROM \`User\` ${w}`, ...args);
+    const rows: any[] = await db.$queryRawUnsafe(`SELECT id, email, name, createdAt FROM \`User\` ${w} ORDER BY createdAt DESC LIMIT 50 OFFSET ${(page - 1) * 50}`, ...args);
+    const ids = rows.map((r) => String(r.id));
+    const ms: any[] = ids.length
+      ? await db.$queryRawUnsafe(`SELECT m.userId AS userId, CAST(m.role AS CHAR) AS role, t.id AS tid, t.name AS tname, CAST(t.plan AS CHAR) AS tplan FROM \`Membership\` m JOIN \`Tenant\` t ON t.id = m.tenantId WHERE m.userId IN (${ids.map(() => "?").join(",")})`, ...ids)
+      : [];
+    const tids = [...new Set(ms.map((m) => String(m.tid)))];
+    const subs: any[] = tids.length
+      ? await db.$queryRawUnsafe(`SELECT tenantId, CAST(plan AS CHAR) AS plan, status, currentPeriodEnd FROM \`Subscription\` WHERE tenantId IN (${tids.map(() => "?").join(",")})`, ...tids).catch(() => [])
+      : [];
+    const subBy = new Map<string, any>(subs.map((s) => [String(s.tenantId), s]));
+    return {
+      total: Number(totalRows[0]?.c ?? rows.length), page,
+      users: rows.map((u) => ({
+        id: u.id, email: u.email, name: u.name, createdAt: u.createdAt,
+        workspaces: ms.filter((m) => m.userId === u.id).map((m) => {
+          const s = subBy.get(String(m.tid));
+          return { id: m.tid, name: m.tname, role: m.role, plan: s?.plan ?? m.tplan, status: s?.status ?? "none", currentPeriodEnd: s?.currentPeriodEnd ?? null };
+        }),
+      })),
+    };
+  }
 
   // ── One workspace: members, subscription, payments ─────────
   app.get("/admin/tenants/:id", async (req, reply) => {
