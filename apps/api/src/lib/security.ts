@@ -80,6 +80,8 @@ export function registerSecurity(app: FastifyInstance) {
     const status = Number(err.statusCode) >= 400 && Number(err.statusCode) < 600 ? Number(err.statusCode) : 500;
     if (err?.code === "P2021" || err?.code === "P2022" || /does not exist in the current database/.test(String(err?.message)))
       { req.log.error({ err }, "database schema out of date"); return reply.code(503).send({ error: "The database is missing a table or column. Restart the app (it repairs itself on start) or run docs/upgrade-existing-database.sql." }); }
+    if (/ENCRYPTION_KEY is missing or invalid/.test(String(err?.message)))
+      { req.log.error({ err }, "encryption key not configured"); return reply.code(503).send({ error: "Server setting ENCRYPTION_KEY is missing or invalid. Set it to 64 hex characters (openssl rand -hex 32) in your hosting environment and restart." }); }
     if (status >= 500) { req.log.error({ err }, "request failed"); return reply.code(status).send({ error: "Internal server error" }); }
     return reply.code(status).send({ error: err.message || "Request failed" });
   });
