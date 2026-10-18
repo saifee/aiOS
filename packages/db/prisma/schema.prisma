@@ -99,6 +99,7 @@ model Business {
   agents              Agent[]
   goals               Goal[]
   decisions           Decision[]
+  bookings            Booking[]
   @@index([tenantId])
 }
 
@@ -769,4 +770,26 @@ model OAuthIdentity {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([provider, subject])
   @@index([userId])
+}
+
+// Built-in scheduling: people book time through the public booking page or the AI's link.
+model Booking {
+  id         String   @id @default(cuid())
+  businessId String
+  typeId     String
+  typeTitle  String
+  name       String
+  email      String
+  phone      String?
+  notes      String?  @db.Text
+  startsAt   DateTime
+  endsAt     DateTime
+  status     String   @default("confirmed") // confirmed | cancelled
+  source     String   @default("link")      // link | ai | manual
+  token      String   @unique               // guest's private link for calendar download / cancel
+  slotKey    String?  @unique               // set while confirmed; blocks double-booking the same start
+  joinUrl    String?  @db.Text
+  createdAt  DateTime @default(now())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@index([businessId, startsAt])
 }

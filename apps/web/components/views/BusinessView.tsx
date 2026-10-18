@@ -90,7 +90,7 @@ export function BusinessView() {
         </div>
         <Field label="Languages" k="languages" hint="en, ar, ur…" />
         <Field label="Tone" k="tone" hint="professional | friendly | consultative" />
-        <Field label="Booking link" k="calendarLink" hint="Cal.com / Calendly link the AI shares to schedule meetings" />
+        <Field label="Cal.com / Calendly link (optional)" k="calendarLink" hint="Used when you prefer an outside booking page over the built-in one (see Bookings)" />
       </section>
 
       <button className="btn" onClick={save}>{saved ? "Saved ✓" : bid ? "Save changes" : "Create business & start hunting"}</button>

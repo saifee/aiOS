@@ -1,3 +1,4 @@
+import { bookingLinkFor } from "@leadhunter/agents";
 import { getQueue, INLINE } from "@leadhunter/agents";
 import type { Job } from "bullmq";
 import { prisma, arr } from "@leadhunter/db";
@@ -26,7 +27,7 @@ export async function followupProcessor(job: Job) {
   const contact = lead.contacts[0];
   if (contact?.email) {
     const gen = await ai.generateEmail({
-      business: { name: lead.business.name, services: lead.business.services, tone: lead.business.tone, calendarLink: lead.business.calendarLink },
+      business: { name: lead.business.name, services: lead.business.services, tone: lead.business.tone, calendarLink: bookingLinkFor(lead.business) },
       lead: { companyName: lead.companyName, contactName: contact.name, industry: lead.industry, painPoints: lead.painPoints },
       followUp: { attempt, previousSubject: lead.messages.find((m) => m.subject)?.subject },
       language: arr(lead.business.languages)[0] ?? "en",

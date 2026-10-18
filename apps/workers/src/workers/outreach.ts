@@ -1,3 +1,4 @@
+import { bookingLinkFor } from "@leadhunter/agents";
 import { whatsappCfg } from "@leadhunter/agents";
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
@@ -51,7 +52,7 @@ export async function outreachProcessor(job: Job) {
   const contact = lead.contacts[0];
   const channels = arr<string>(lead.campaign?.channels).length ? arr<string>(lead.campaign?.channels) : ["EMAIL"];
   const ctx = {
-    business: { name: b.name, description: b.description, services: b.services, tone: b.tone, calendarLink: b.calendarLink },
+    business: { name: b.name, description: b.description, services: b.services, tone: b.tone, calendarLink: bookingLinkFor(b) },
     lead: {
       companyName: lead.companyName, industry: lead.industry, city: lead.city, country: lead.country,
       painPoints: lead.painPoints, potentialNeed: lead.potentialNeed,

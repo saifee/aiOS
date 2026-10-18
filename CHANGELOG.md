@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0
+
+- **Chief of Staff** on the dashboard: a daily briefing (meetings, new leads, approvals, overdue tasks, failed AI runs) shown when you sign in, with a chat box for follow-up questions. Optional daily email at a time you choose, plus "Email it now". Email needs `SENDGRID_API_KEY` (or SES) and `DEFAULT_FROM_EMAIL`.
+- **Bookings** menu: built-in booking page (`/book?b=<link-name>`) with meeting types, weekly availability, time zone, notice and buffer; guests get a confirmation with Add-to-Google-Calendar and .ics links and can cancel; you get a notification and email.
+- **Calendar export**: download an .ics file or subscribe to a private calendar feed from Google, Outlook or Apple Calendar.
+- The AI now shares your aiOS booking link (or your Cal.com / Calendly link if you prefer) in outreach, follow-ups and conversations, and agents have a `get_booking_link` tool.
+- New `Booking` table (created automatically on start). Daily emails are sent by the scheduler tick, so keep `INLINE_SCHEDULER` on or call `/v1/cron/tick` every 5 minutes.
+
 ## 1.4.2
 
 - Fix: login page refreshing endlessly in Chrome, Samsung Internet and other browsers. A saved but expired sign-in made the page's own background request fail with 401, which reloaded /login forever. Expired tokens are now cleared and the login page is never reloaded.

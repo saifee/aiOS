@@ -1,3 +1,4 @@
+import { bookingLinkFor } from "@leadhunter/agents";
 import { whatsappCfg } from "@leadhunter/agents";
 import { getQueue } from "@leadhunter/agents";
 import type { Job } from "bullmq";
@@ -33,7 +34,7 @@ export async function conversationProcessor(job: Job) {
   const result = await ai.handleReply({
     business: {
       name: b.name, description: b.description, services: b.services, tone: b.tone,
-      calendarLink: b.calendarLink, languages: b.languages,
+      calendarLink: bookingLinkFor(b), languages: b.languages,
       pricingPolicy: (b.branding as any)?.pricingPolicy ?? "Do not quote prices; offer a call instead.",
     },
     lead: { companyName: lead.companyName, contactName: lead.contacts[0]?.name, industry: lead.industry },

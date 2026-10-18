@@ -668,3 +668,27 @@ CREATE TABLE IF NOT EXISTS `OAuthIdentity` (
   INDEX `OAuthIdentity_userId_idx` (`userId`),
   CONSTRAINT `OAuthIdentity_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `Booking` (
+  `id` VARCHAR(191) NOT NULL,
+  `businessId` VARCHAR(191) NOT NULL,
+  `typeId` VARCHAR(191) NOT NULL,
+  `typeTitle` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `phone` VARCHAR(191) NULL,
+  `notes` TEXT NULL,
+  `startsAt` DATETIME(3) NOT NULL,
+  `endsAt` DATETIME(3) NOT NULL,
+  `status` VARCHAR(191) NOT NULL DEFAULT 'confirmed',
+  `source` VARCHAR(191) NOT NULL DEFAULT 'link',
+  `token` VARCHAR(191) NOT NULL,
+  `slotKey` VARCHAR(191) NULL,
+  `joinUrl` TEXT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `Booking_token_key` (`token`),
+  UNIQUE INDEX `Booking_slotKey_key` (`slotKey`),
+  INDEX `Booking_businessId_startsAt_idx` (`businessId`, `startsAt`),
+  CONSTRAINT `Booking_businessId_fkey` FOREIGN KEY (`businessId`) REFERENCES `Business` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

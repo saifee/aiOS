@@ -2,6 +2,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { prisma } from "@leadhunter/db";
 import { whatsappCfg } from "./channels";
+import { bookingLinkFor } from "./booking";
 import { sendEmail, sendWhatsAppText, notifySlack, discoverViaSearch, discoverViaPlaces, generateImage, createAvatarVideo } from "@leadhunter/integrations";
 import { searchKnowledge } from "./memory";
 import { sendAgentMessage, publishEvent, dispatchSwarm } from "./bus";
@@ -65,6 +66,11 @@ export const TOOLS: Record<string, Tool> = {
     name: "book_meeting", description: "Create a meeting on a lead's record.",
     schema: z.object({ leadId: z.string(), startsAt: z.string(), endsAt: z.string().optional(), joinUrl: z.string().optional() }),
     handler: async (i) => { const m = await prisma.meeting.create({ data: { leadId: i.leadId, provider: "calcom", startsAt: new Date(i.startsAt), endsAt: new Date(i.endsAt ?? i.startsAt), joinUrl: i.joinUrl } }); await prisma.lead.update({ where: { id: i.leadId }, data: { stage: "MEETING_SCHEDULED" } }); return m; },
+  },
+  get_booking_link: {
+    name: "get_booking_link", description: "Get the link people use to book a meeting with this company (share it instead of proposing times yourself).",
+    schema: z.object({}),
+    handler: async (_i, ctx) => { const b = await prisma.business.findUnique({ where: { id: ctx.businessId } }); return { link: b ? bookingLinkFor(b as any) ?? null : null }; },
   },
   create_task: {
     name: "create_task", description: "Create a task, optionally assigned to a person or another agent.",

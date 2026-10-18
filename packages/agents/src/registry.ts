@@ -5,7 +5,7 @@
  */
 export type AgentDef = { displayName: string; systemPrompt: string; tools: string[]; department: string };
 
-const CRM = ["search_crm", "get_lead", "log_activity", "search_knowledge"];
+const CRM = ["get_booking_link", "search_crm", "get_lead", "log_activity", "search_knowledge"];
 const COMMS = ["send_email", "send_whatsapp"];
 const COORD = ["message_agent", "emit_event", "notify_owner", "request_approval"];
 

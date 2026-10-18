@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { getQueue } from "@leadhunter/agents";
 import { SCHEDULE } from "../../../workers/src/registry";
+import { runDailyBriefings } from "../lib/chief";
 
 const STATE_FILE = process.env.CRON_STATE_FILE || join(process.cwd(), ".cron-state.json");
 let state: Record<string, number> = {};
@@ -20,6 +21,10 @@ export async function cronTick(only?: string): Promise<string[]> {
     state[key] = now;
     await getQueue(s.queue).add(s.job, {});
     ran.push(key);
+  }
+  if (!only || only === "briefings") {
+    // Cheap check (one query); sends each opted-in user their briefing once a day.
+    if (only || now - (state.briefings ?? 0) >= 10 * 60_000) { state.briefings = now; if ((await runDailyBriefings().catch(() => 0)) > 0) ran.push("briefings"); }
   }
   if (ran.length) save();
   return ran;

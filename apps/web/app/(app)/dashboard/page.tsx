@@ -12,13 +12,19 @@ type State = { boards: Board[]; active: string };
 const uid = () => Math.random().toString(36).slice(2, 9);
 const mk = (types: string[]): Item[] => types.map((t) => ({ id: uid(), type: t, span: widgetDef(t)!.span }));
 const PRESETS: Record<string, { name: string; blurb: string; types: string[] }> = {
-  overview: { name: "Overview", blurb: "A bit of everything", types: ["command", "kpis", "pipeline", "approvals", "brief", "team", "start", "goals", "usage"] },
-  executive: { name: "Executive", blurb: "Priorities, decisions and approvals", types: ["command", "brief", "approvals", "goals", "decisions", "usage"] },
+  overview: { name: "Overview", blurb: "A bit of everything", types: ["chief", "command", "kpis", "pipeline", "approvals", "brief", "team", "start", "goals", "usage"] },
+  executive: { name: "Executive", blurb: "Priorities, decisions and approvals", types: ["chief", "command", "brief", "approvals", "goals", "decisions", "usage"] },
   sales: { name: "Sales", blurb: "Pipeline, outreach and the team", types: ["kpis", "pipeline", "recipes", "team", "suggestions"] },
   operations: { name: "Operations", blurb: "What agents are doing and what it costs", types: ["approvals", "activity", "usage", "plan", "recipes"] },
 };
 const fresh = (): State => { const b = { id: uid(), name: "Overview", items: mk(PRESETS.overview.types) }; return { boards: [b], active: b.id }; };
 const LS = "aios_dashboards_v1";
+// Existing users get the Chief of Staff on top of their first dashboard once; if they remove it, it stays removed.
+function withChief(s: State, done: boolean): State {
+  if (done) return s;
+  if (s.boards.some((b) => b.items.some((i) => i.type === "chief"))) return s;
+  return { ...s, boards: s.boards.map((b, i) => (i === 0 ? { ...b, items: [{ id: uid(), type: "chief", span: 12 }, ...b.items] } : b)) };
+}
 
 export default function Dashboard() {
   const { data: me } = useMe();
@@ -32,10 +38,11 @@ export default function Dashboard() {
 
   // load: local cache first (instant), then the account copy (follows you across devices)
   useEffect(() => {
-    let local: State | null = null;
+    let local: State | null = null, done = true;
+    try { done = !!localStorage.getItem("aios_cos_v1"); localStorage.setItem("aios_cos_v1", "1"); } catch { /* ignore */ }
     try { local = JSON.parse(localStorage.getItem(LS) || "null"); } catch { /* ignore */ }
-    setSt(local?.boards?.length ? local : fresh());
-    api("/me/prefs/dashboards").then((r) => { if (r.value?.boards?.length) { setSt(r.value); try { localStorage.setItem(LS, JSON.stringify(r.value)); } catch { /* ignore */ } } }).catch(() => {}).finally(() => { loaded.current = true; });
+    setSt(withChief(local?.boards?.length ? local : fresh(), done));
+    api("/me/prefs/dashboards").then((r) => { if (r.value?.boards?.length) { const v = withChief(r.value, done); setSt(v); try { localStorage.setItem(LS, JSON.stringify(v)); } catch { /* ignore */ } } }).catch(() => {}).finally(() => { loaded.current = true; });
     if (window.location.hash === "#remix") setEdit(true);
   }, []);
 

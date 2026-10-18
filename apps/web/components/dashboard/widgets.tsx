@@ -10,6 +10,7 @@ import { useMe, useIsPersonal } from "@/lib/hooks";
 import { toast } from "@/lib/toast";
 import { FEATURED, metaFor } from "@/lib/agents";
 import { RECIPES } from "@/lib/recipes";
+import { ChiefOfStaff } from "@/components/dashboard/ChiefOfStaff";
 
 export type WidgetDef = { type: string; title: string; desc: string; icon: LucideIcon; spans: number[]; span: number; Comp: () => React.JSX.Element };
 
@@ -274,6 +275,7 @@ function GetStarted() {
 }
 
 export const WIDGETS: WidgetDef[] = [
+  { type: "chief", title: "Chief of Staff", desc: "Daily briefing and chat, by email too", icon: Users, spans: [6, 8, 12], span: 12, Comp: ChiefOfStaff },
   { type: "command", title: "Ask your company", desc: "Give an order in plain language", icon: Terminal, spans: [8, 12], span: 12, Comp: CommandBar },
   { type: "start", title: "Get started", desc: "Setup checklist", icon: ListChecks, spans: [4, 6], span: 4, Comp: GetStarted },
   { type: "kpis", title: "Key numbers", desc: "Leads, outreach, replies, deals", icon: Gauge, spans: [8, 12], span: 12, Comp: Kpis },
