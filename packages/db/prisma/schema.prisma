@@ -42,6 +42,7 @@ model User {
   memberships   Membership[]
   notifications Notification[]
   aiKeys        AiKey[]
+  identities    OAuthIdentity[]
   prefs         UserPref[]
 }
 
@@ -754,4 +755,18 @@ model PlatformSetting {
   key       String   @id
   value     Json?
   updatedAt DateTime @updatedAt
+}
+
+// Google / Microsoft sign-in links. verified=false means the provider did not vouch for the email address.
+model OAuthIdentity {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  subject   String
+  email     String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, subject])
+  @@index([userId])
 }

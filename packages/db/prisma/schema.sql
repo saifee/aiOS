@@ -654,3 +654,17 @@ CREATE TABLE IF NOT EXISTS `PlatformSetting` (
   `updatedAt` DATETIME(3) NOT NULL,
   PRIMARY KEY (`key`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `OAuthIdentity` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `provider` VARCHAR(191) NOT NULL,
+  `subject` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `verified` BOOLEAN NOT NULL DEFAULT 0,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `OAuthIdentity_provider_subject_key` (`provider`, `subject`),
+  INDEX `OAuthIdentity_userId_idx` (`userId`),
+  CONSTRAINT `OAuthIdentity_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

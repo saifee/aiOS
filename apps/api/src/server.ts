@@ -8,6 +8,7 @@ import { existsSync, statSync, readFileSync } from "fs";
 import multipart from "@fastify/multipart";
 import rawBody from "fastify-raw-body";
 import { authRoutes } from "./routes/auth";
+import { oauthRoutes } from "./routes/oauth";
 import { setupRoutes } from "./routes/setup";
 import { businessRoutes } from "./routes/businesses";
 import { campaignRoutes } from "./routes/campaigns";
@@ -79,6 +80,7 @@ async function main() {
 
   await app.register(setupRoutes, { prefix: "/v1" });   // first-run wizard (unauthenticated)
   await app.register(authRoutes, { prefix: "/v1/auth" });
+  await app.register(oauthRoutes, { prefix: "/v1/auth" }); // Google / Microsoft sign-in
   await app.register(webhookRoutes, { prefix: "/v1/webhooks" }); // unauthenticated (provider-verified)
   await app.register(businessRoutes, { prefix: "/v1/businesses" });
   await app.register(campaignRoutes, { prefix: "/v1" });

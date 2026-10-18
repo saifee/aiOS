@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+
+- Sign in with Google and Microsoft (work or personal accounts). Buttons appear on the login page once the client ID and secret are set; see `.env.example`.
+- Accounts are matched by provider identity. An existing account is only linked by email when the provider vouches for that email, which prevents account takeover through unverified Microsoft work emails.
+- New `OAuthIdentity` table (created automatically on start).
+
 ## 1.3.0
 
 - Fix: "Body cannot be empty" 400 on Talk to us / Manage payment. Requests without a body no longer send a JSON content-type.
