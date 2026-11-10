@@ -13,7 +13,7 @@ jobs:
           node-version: 20
       - name: Build aios-hostinger.zip
         run: ./scripts/package-hostinger.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aios-hostinger
           path: aios-hostinger.zip
