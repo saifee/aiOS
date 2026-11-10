@@ -1,12 +1,8 @@
 "use client";
-import { PageHeader } from "@/components/Tabs";
-import { EmployeesView } from "@/components/views/EmployeesView";
+import { useEffect } from "react";
 
-export default function Employees() {
-  return (
-    <div className="mx-auto max-w-5xl">
-      <PageHeader title="AI Employees" subtitle="Eight roles that run routines on a schedule and leave you finished drafts. They never send or spend without you." />
-      <EmployeesView />
-    </div>
-  );
+// AI Employees now lives inside AI Workforce. This keeps old links working.
+export default function EmployeesRedirect() {
+  useEffect(() => { window.location.replace("/workforce#routines"); }, []);
+  return <p className="p-6 text-sm text-ink/60">Moved to AI Workforce → Scheduled routines…</p>;
 }
