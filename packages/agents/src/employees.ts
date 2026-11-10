@@ -117,3 +117,6 @@ export const EMPLOYEES: Employee[] = [
 
 export const ROUTINES: Record<string, { employee: Employee; routine: Routine }> = Object.fromEntries(
   EMPLOYEES.flatMap((e) => e.routines.map((r) => [r.id, { employee: e, routine: r }])));
+
+/** Which agent on the team each scheduled role belongs to (one team, two ways of working: on request and on schedule). */
+export const EMPLOYEE_AGENT: Record<string, string> = { gtm: "growth", seo: "marketing", social: "marketing", ads: "marketing", webdev: "cto", sales: "sales", csat: "customer_success", cos: "ceo_assistant" };

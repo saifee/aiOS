@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.5
+
+- One team, one activity feed: scheduled routine results now appear in each agent's Recent activity next to the tasks you assign, labelled "scheduled routine". Nothing else changes for existing agents.
+
 ## 1.8.4
 
 - AI Employees fully merged into AI Workforce. Each scheduled role now sits on the agent it belongs to (Growth, Marketing, AI CTO, Salesperson, Customer Success, CEO Assistant): open "Scheduled routines" under the agent card to switch it on, see its schedule and press Run. The website / daily-limit bar and the "Scheduled work to review" drafts are on the Agents tab. The separate Scheduled routines tab is removed.
