@@ -15,7 +15,7 @@ export const SUBPAGES: { href: string; label: string; keywords: string }[] = [
   { href: "/bookings#calendar", label: "Calendar export", keywords: "ics google outlook apple subscribe" },
   { href: "/workforce#command", label: "Command Center", keywords: "ask tell run approvals" },
   { href: "/workforce#agents", label: "AI agents", keywords: "team ceo salesperson" },
-  { href: "/workforce#routines", label: "Scheduled routines (AI Employees)", keywords: "employees schedule seo sales social ads csat gtm webdev chief of staff morning brief drafts" },
+  { href: "/workforce#agents", label: "Scheduled routines (AI Employees)", keywords: "employees schedule seo sales social ads csat gtm webdev chief of staff morning brief drafts" },
   { href: "/workforce#receptionist", label: "AI Receptionist", keywords: "calls phone" },
   { href: "/workforce#studio", label: "Studio", keywords: "design images social swarm" },
   { href: "/comms#leads", label: "Leads", keywords: "crm pipeline prospects" },

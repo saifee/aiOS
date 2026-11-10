@@ -8,9 +8,11 @@ import { useMe } from "@/lib/hooks";
 import { toast } from "@/lib/toast";
 import { AGENT_META, FEATURED, metaFor } from "@/lib/agents";
 import { AgentCard } from "../AgentCard";
+import { RoutinesBar, RoutinePanel, ScheduledWork, RoutinesProvider, useRoutines } from "./Routines";
 
 export function AgentsView() {
   const bid = businessId();
+  const routines = useRoutines();
   const { data: me } = useMe();
   const { data: agents } = useSWR(bid ? `/businesses/${bid}/agents` : null, fetcher);
   const { data: runs, mutate } = useSWR(bid ? `/businesses/${bid}/agent-runs` : null, fetcher);
@@ -36,6 +38,7 @@ export function AgentsView() {
   }
 
   return (
+    <RoutinesProvider value={routines}>
     <div className="space-y-8">
       {me && !me.aiReady && (
         <div className="flex items-center gap-3 rounded-xl border border-amber/40 bg-amber/10 p-4 text-sm">
@@ -45,9 +48,11 @@ export function AgentsView() {
         </div>
       )}
 
+      <RoutinesBar />
+
       <section>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {featured.map((a: any) => <AgentCard key={a.role} agent={a} onAssign={() => setTask({ role: a.role, text: "" })} />)}
+        <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {featured.map((a: any) => <div key={a.role}><AgentCard agent={a} onAssign={() => setTask({ role: a.role, text: "" })} /><RoutinePanel role={a.role} /></div>)}
           {!agents && Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-44 animate-pulse rounded-2xl bg-line" />)}
         </div>
       </section>
@@ -58,11 +63,13 @@ export function AgentsView() {
           <div key={dept} className="mt-5">
             <h3 className="mb-2 text-sm font-semibold text-ink/60">{dept}</h3>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {ls.map((a) => <AgentCard key={a.role} agent={a} compact onAssign={() => setTask({ role: a.role, text: "" })} />)}
+              {ls.map((a) => <div key={a.role}><AgentCard agent={a} compact onAssign={() => setTask({ role: a.role, text: "" })} /><RoutinePanel role={a.role} /></div>)}
             </div>
           </div>
         ))}
       </section>
+
+      <ScheduledWork />
 
       <section>
         <h3 className="mb-3 text-sm font-semibold">Recent activity</h3>
@@ -97,5 +104,6 @@ export function AgentsView() {
         </div>
       )}
     </div>
+    </RoutinesProvider>
   );
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.4
+
+- AI Employees fully merged into AI Workforce. Each scheduled role now sits on the agent it belongs to (Growth, Marketing, AI CTO, Salesperson, Customer Success, CEO Assistant): open "Scheduled routines" under the agent card to switch it on, see its schedule and press Run. The website / daily-limit bar and the "Scheduled work to review" drafts are on the Agents tab. The separate Scheduled routines tab is removed.
+
 ## 1.8.3
 
 - AI Employees is now a tab inside AI Workforce ("Scheduled routines") instead of a separate menu item, so there is one place for your whole AI team. The old /employees link redirects there, and search still finds it.
