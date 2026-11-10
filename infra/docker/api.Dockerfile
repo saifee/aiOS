@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:26-slim
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json turbo.json ./
