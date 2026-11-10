@@ -808,3 +808,34 @@ model Invite {
   createdAt   DateTime  @default(now())
   @@index([email])
 }
+
+// AI Employees: which roles a workspace switched on, and what each routine produced (drafts for the owner to review).
+model EmployeeSetting {
+  id         String   @id @default(cuid())
+  businessId String
+  employee   String   // employee id, or "_all" for workspace-wide settings
+  enabled    Boolean  @default(false)
+  config     Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@unique([businessId, employee])
+}
+
+model EmployeeRun {
+  id         String    @id @default(cuid())
+  businessId String
+  employee   String
+  routine    String
+  periodKey  String    // once-per-period guard: 2026-11-10 / 2026-W46 / 2026-11
+  status     String    // running | ok | failed | blocked
+  title      String?
+  output     String?   @db.Text
+  error      String?   @db.Text
+  state      String    @default("new")   // new | done | dismissed (owner's review)
+  meta       Json?
+  trigger    String    @default("schedule")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  @@unique([businessId, routine, periodKey])
+  @@index([businessId, startedAt])
+}

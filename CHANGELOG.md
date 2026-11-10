@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.0
+
+- **AI Employees** (new page): eight roles (Go-to-market, SEO, Web developer, Social media, Ads, Sales, Customer success, Chief of Staff) with 20 scheduled routines, inspired by the markfulton/ai-employees idea. Switch a role on and it runs its routines on a schedule in your business time zone (morning signal sweep, weekly content plan, Friday sales review, monthly retro and more), using your own leads, conversations, bookings and invoices. Each routine runs once per period, retries after a failure, and is capped per day (default 12).
+- **Guardrails**: employees only draft. They never send, post, spend or change anything. Social plans are saved as unpublished drafts. Results appear under Deliverables with Copy, Mark done and Dismiss. New drafts and any employee problems show in your morning Chief of Staff briefing.
+- **Free to run**: Site health and Fleet check use no AI at all. AI routines work on any free key (Groq, Gemini, OpenRouter, Cerebras, Mistral, NVIDIA, SambaNova, GitHub Models).
+- **AI keys that "add but never work"**: a key is now tested when added and refused if the provider rejects it (wrong key, wrong provider), with a plain-language hint for each failure (bad key, no credit, rate limit, wrong model, network). Background jobs now use every enabled key in the workspace instead of only a signed-in user's key. Gemini now supports tool calling. Three new free providers: NVIDIA NIM, SambaNova, GitHub Models.
+- New tables `EmployeeSetting` and `EmployeeRun` (created automatically on start).
+
 ## 1.7.0
 
 - **System email setup** (Settings → Email, superadmin only): connect Gmail / Google Workspace, Outlook / Office 365, any SMTP server, Resend, Mailgun, Mailjet, SendGrid, Brevo, Postmark or Maileroo. Credentials are encrypted; a **Send test email** button shows the provider's real answer. Invitations, daily briefings, booking confirmations, alerts and outreach all use it. If nothing is set up there, the old `SENDGRID_API_KEY` / AWS SES environment settings keep working.

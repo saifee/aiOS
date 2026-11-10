@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { timingSafeEqual } from "crypto";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { getQueue } from "@leadhunter/agents";
+import { getQueue, runDueEmployees } from "@leadhunter/agents";
 import { SCHEDULE } from "../../../workers/src/registry";
 import { runDailyBriefings } from "../lib/chief";
 
@@ -25,6 +25,14 @@ export async function cronTick(only?: string): Promise<string[]> {
   if (!only || only === "briefings") {
     // Cheap check (one query); sends each opted-in user their briefing once a day.
     if (only || now - (state.briefings ?? 0) >= 10 * 60_000) { state.briefings = now; if ((await runDailyBriefings().catch(() => 0)) > 0) ran.push("briefings"); }
+  }
+  if (!only || only === "employees") {
+    // Employees draft work from your own data. Started in the background so a slow AI answer never holds up the scheduler request.
+    if (only || now - (state.employees ?? 0) >= 10 * 60_000) {
+      state.employees = now;
+      runDueEmployees().then((n) => { if (n) console.log(`[employees] ${n} routine(s) ran`); }).catch((e) => console.error("[employees]", e?.message ?? e));
+      ran.push("employees");
+    }
   }
   if (ran.length) save();
   return ran;

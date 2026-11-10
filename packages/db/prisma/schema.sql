@@ -708,3 +708,35 @@ CREATE TABLE IF NOT EXISTS `Invite` (
   UNIQUE INDEX `Invite_tokenHash_key` (`tokenHash`),
   INDEX `Invite_email_idx` (`email`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `EmployeeSetting` (
+  `id` VARCHAR(191) NOT NULL,
+  `businessId` VARCHAR(191) NOT NULL,
+  `employee` VARCHAR(191) NOT NULL,
+  `enabled` BOOLEAN NOT NULL DEFAULT false,
+  `config` JSON NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `EmployeeSetting_businessId_employee_key` (`businessId`, `employee`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `EmployeeRun` (
+  `id` VARCHAR(191) NOT NULL,
+  `businessId` VARCHAR(191) NOT NULL,
+  `employee` VARCHAR(191) NOT NULL,
+  `routine` VARCHAR(191) NOT NULL,
+  `periodKey` VARCHAR(191) NOT NULL,
+  `status` VARCHAR(191) NOT NULL,
+  `title` VARCHAR(191) NULL,
+  `output` TEXT NULL,
+  `error` TEXT NULL,
+  `state` VARCHAR(191) NOT NULL DEFAULT 'new',
+  `meta` JSON NULL,
+  `trigger` VARCHAR(191) NOT NULL DEFAULT 'schedule',
+  `startedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `finishedAt` DATETIME(3) NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `EmployeeRun_businessId_routine_periodKey_key` (`businessId`, `routine`, `periodKey`),
+  INDEX `EmployeeRun_businessId_startedAt_idx` (`businessId`, `startedAt`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

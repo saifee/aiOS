@@ -4,7 +4,7 @@ import { z } from "zod";
 import { PLANS, PlanKey, encrypt, encryptionConfigured, assertPublicUrl, allowPrivateAiUrls } from "@leadhunter/integrations";
 import { securityWarnings } from "../lib/security";
 import { isSuperAdmin } from "../lib/superadmin";
-import { PROVIDERS, testKey, invalidateKeys, invalidatePlan, MODEL_RE } from "@leadhunter/agents";
+import { PROVIDERS, testKey, invalidateKeys, invalidatePlan, MODEL_RE, explainAiError } from "@leadhunter/agents";
 
 const encryptionReady = encryptionConfigured;
 const hasPlatformAi = () => !!(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY);
@@ -12,6 +12,7 @@ const hasPlatformAi = () => !!(process.env.ANTHROPIC_API_KEY || process.env.OPEN
 const publicKey = (k: any) => ({
   id: k.id, provider: k.provider, label: k.label, model: k.model, baseUrl: k.baseUrl, hint: k.keyHint, priority: k.priority,
   enabled: k.enabled, shared: k.shared, lastOkAt: k.lastOkAt, lastError: k.lastError, createdAt: k.createdAt,
+  hintText: k.lastError ? explainAiError(k.provider, k.lastError).hint : null,
 });
 
 /** Profile, plan, bring-your-own AI keys, dashboard layouts, goals & decisions. */
@@ -66,6 +67,9 @@ export async function meRoutes(app: FastifyInstance) {
     if ((await prisma.aiKey.count({ where: { userId } })) >= 20) return reply.code(400).send({ error: "Key limit reached (20)." });
     const last = await prisma.aiKey.findFirst({ where: { userId }, orderBy: { priority: "desc" } });
     const test = await testKey(b.provider, b.key, b.model, b.baseUrl);
+    // A key the provider rejects (wrong/revoked key) would sit in the list and never work, so refuse it here with a clear reason.
+    // A valid key that is only out of credit or rate-limited is still saved (it will start working once topped up).
+    if (!test.ok && test.kind === "auth") return reply.code(400).send({ error: `Key not saved. ${test.hint} (${test.error})` });
     const row = await prisma.aiKey.create({
       data: {
         tenantId, userId, provider: b.provider, label: b.label || null, model: b.model || null, baseUrl: b.baseUrl || null,
@@ -82,7 +86,7 @@ export async function meRoutes(app: FastifyInstance) {
     const row = await prisma.aiKey.findFirst({ where: { id, userId: req.auth!.userId } });
     if (!row) throw Object.assign(new Error("Key not found"), { statusCode: 404 });
     const { decrypt } = await import("@leadhunter/integrations");
-    let t: { ok: boolean; ms: number; error?: string };
+    let t: Awaited<ReturnType<typeof testKey>>;
     try { t = await testKey(row.provider, decrypt(row.keyEnc), row.model ?? undefined, row.baseUrl ?? undefined); }
     catch { t = { ok: false, ms: 0, error: "Stored key can't be decrypted (ENCRYPTION_KEY changed?). Delete and re-add it." }; }
     await prisma.aiKey.update({ where: { id }, data: t.ok ? { lastOkAt: new Date(), lastError: null } : { lastError: t.error ?? "failed" } });

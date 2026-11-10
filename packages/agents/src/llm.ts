@@ -28,10 +28,13 @@ export type ProviderSpec = { label: string; kind: Kind; base?: string; model: st
 
 export const PROVIDERS: Record<string, ProviderSpec> = {
   groq:       { label: "Groq",              kind: "openai",    base: "https://api.groq.com/openai/v1",   model: "llama-3.3-70b-versatile",                   tools: true,  free: true,  json: true,  keyUrl: "https://console.groq.com/keys", note: "Very fast, generous free tier" },
-  gemini:     { label: "Google Gemini",     kind: "gemini",                                                model: "gemini-flash-latest",                          tools: false, free: true,  json: true,  keyUrl: "https://aistudio.google.com/apikey", note: "Free tier in Google AI Studio" },
+  gemini:     { label: "Google Gemini",     kind: "gemini",                                                model: "gemini-flash-latest",                          tools: true, free: true,  json: true,  keyUrl: "https://aistudio.google.com/apikey", note: "Free tier in Google AI Studio" },
   openrouter: { label: "OpenRouter",        kind: "openai",    base: "https://openrouter.ai/api/v1",     model: "meta-llama/llama-3.3-70b-instruct:free",    tools: true,  free: true,  keyUrl: "https://openrouter.ai/keys", note: "One key, hundreds of models incl. free ones" },
   cerebras:   { label: "Cerebras",          kind: "openai",    base: "https://api.cerebras.ai/v1",       model: "llama3.3-70b",                              tools: true,  free: true,  keyUrl: "https://cloud.cerebras.ai", note: "Free tier, very high speed" },
   mistral:    { label: "Mistral",           kind: "openai",    base: "https://api.mistral.ai/v1",        model: "mistral-small-latest",                      tools: true,  free: true,  json: true,  keyUrl: "https://console.mistral.ai/api-keys" },
+  nvidia:     { label: "NVIDIA NIM",        kind: "openai",    base: "https://integrate.api.nvidia.com/v1", model: "meta/llama-3.3-70b-instruct",            tools: true,  free: true,  keyUrl: "https://build.nvidia.com/settings/api-keys", note: "Free credits for developers. Key starts with nvapi-." },
+  sambanova:  { label: "SambaNova",         kind: "openai",    base: "https://api.sambanova.ai/v1",      model: "Meta-Llama-3.3-70B-Instruct",               tools: true,  free: true,  keyUrl: "https://cloud.sambanova.ai/apis" },
+  github:     { label: "GitHub Models",     kind: "openai",    base: "https://models.github.ai/inference", model: "openai/gpt-4o-mini",                      tools: true,  free: true,  keyUrl: "https://github.com/settings/personal-access-tokens", note: "Free with any GitHub account. Use a fine-grained token with the Models permission." },
   anthropic:  { label: "Anthropic Claude",  kind: "anthropic",                                             model: process.env.CLAUDE_MODEL || "claude-sonnet-4-5", tools: true, keyUrl: "https://console.anthropic.com/settings/keys", note: "Best for agents and tool use" },
   openai:     { label: "OpenAI",            kind: "openai",    base: "https://api.openai.com/v1",        model: "gpt-4o-mini",                               tools: true,  json: true,  keyUrl: "https://platform.openai.com/api-keys" },
   deepseek:   { label: "DeepSeek",          kind: "openai",    base: "https://api.deepseek.com/v1",      model: "deepseek-chat",                             tools: true,  json: true,  keyUrl: "https://platform.deepseek.com/api_keys", note: "Very low cost" },
@@ -91,8 +94,9 @@ async function resolveChain(prefer?: string): Promise<Entry[]> {
       c = { at: Date.now(), rows: await prisma.aiKey.findMany({ where: { tenantId: ctx.tenantId, enabled: true }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }] }) };
       keyCache.set(ctx.tenantId, c);
     }
-    const mine = c.rows.filter((r) => ctx.userId && r.userId === ctx.userId);
-    const team = c.rows.filter((r) => r.userId !== ctx.userId && r.shared);
+    // Background jobs (employees, schedulers, workers) have no signed-in user: they use every enabled key the workspace owns.
+    const mine = c.rows.filter((r) => (ctx.userId ? r.userId === ctx.userId : true));
+    const team = ctx.userId ? c.rows.filter((r) => r.userId !== ctx.userId && r.shared) : [];
     for (const [rows, source] of [[mine, "user"], [team, "team"]] as const)
       for (const r of rows) {
         const spec = PROVIDERS[r.provider]; if (!spec) continue;
@@ -113,9 +117,9 @@ async function resolveChain(prefer?: string): Promise<Entry[]> {
 export type ToolSpec = { name: string; description: string; input_schema: any };
 export type Turn =
   | { role: "user"; text: string }
-  | { role: "assistant"; text: string; calls?: { id: string; name: string; input: any }[] }
+  | { role: "assistant"; text: string; calls?: { id: string; name: string; input: any; sig?: string }[] }
   | { role: "tool"; results: { id: string; name: string; content: string }[] };
-export type ChatResult = { text: string; calls: { id: string; name: string; input: any }[]; tokensIn: number; tokensOut: number; provider: string; model: string };
+export type ChatResult = { text: string; calls: { id: string; name: string; input: any; sig?: string }[]; tokensIn: number; tokensOut: number; provider: string; model: string };
 
 const flatten = (turns: Turn[]) => turns.map((t) => t.role === "user" ? t.text : t.role === "assistant" ? `[assistant] ${t.text}` : `[tool results] ${t.results.map((r) => `${r.name}: ${r.content}`).join("\n")}`).join("\n\n");
 
@@ -146,12 +150,19 @@ async function callEntry(e: Entry, o: { system?: string; turns: Turn[]; tools?: 
       tokensIn: j.usage?.input_tokens ?? 0, tokensOut: j.usage?.output_tokens ?? 0 };
   }
   if (e.spec.kind === "gemini") {
+    // Tool calling uses Gemini's native functionCall / functionResponse parts. Without tools we keep the simple flattened prompt.
+    const useTools = !!o.tools?.length;
+    const contents = useTools ? geminiContents(o.turns) : [{ role: "user", parts: [{ text: flatten(o.turns) }] }];
     const j = await post(`https://generativelanguage.googleapis.com/v1beta/models/${e.model}:generateContent`, { "x-goog-api-key": e.key }, {
       system_instruction: o.system ? { parts: [{ text: o.system }] } : undefined,
-      contents: [{ role: "user", parts: [{ text: flatten(o.turns) }] }],
-      generationConfig: { maxOutputTokens: o.maxTokens, ...(o.json && { responseMimeType: "application/json" }) },
+      contents,
+      ...(useTools && { tools: [{ functionDeclarations: o.tools!.map((t) => ({ name: t.name, description: t.description, parameters: geminiSchema(t.input_schema) })) }] }),
+      generationConfig: { maxOutputTokens: o.maxTokens, ...(o.json && !useTools && { responseMimeType: "application/json" }) },
     });
-    return { ...base, text: j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "", calls: [], tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: j.usageMetadata?.candidatesTokenCount ?? 0 };
+    const parts: any[] = j.candidates?.[0]?.content?.parts ?? [];
+    return { ...base, text: parts.map((p) => p.text ?? "").join(""),
+      calls: parts.filter((p) => p.functionCall).map((p, i) => ({ id: `g${Date.now().toString(36)}${i}`, name: p.functionCall.name, input: p.functionCall.args ?? {}, sig: p.thoughtSignature })),
+      tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: j.usageMetadata?.candidatesTokenCount ?? 0 };
   }
   // OpenAI-compatible (OpenAI, Groq, OpenRouter, Mistral, DeepSeek, Together, xAI, Cerebras, Perplexity, custom…)
   const base_ = (e.base ?? "").replace(/\/+$/, "");
@@ -179,6 +190,53 @@ function touch(e: Entry, error?: string) {
   prisma.aiKey.update({ where: { id: e.id }, data: error ? { lastError: error.slice(0, 300) } : { lastOkAt: new Date(), lastError: null } }).catch(() => {});
 }
 
+
+/** Gemini accepts a subset of JSON Schema: drop what it rejects and keep the rest. */
+export function geminiSchema(sch: any): any {
+  if (Array.isArray(sch)) return sch.map(geminiSchema);
+  if (!sch || typeof sch !== "object") return sch;
+  const out: any = {};
+  for (const [k, v] of Object.entries(sch)) {
+    if (["$schema", "additionalProperties", "$id", "default", "examples", "title"].includes(k)) continue;
+    out[k] = k === "properties" && v && typeof v === "object" ? Object.fromEntries(Object.entries(v as any).map(([pk, pv]) => [pk, geminiSchema(pv)])) : geminiSchema(v);
+  }
+  if (typeof out.type === "string") out.type = out.type.toLowerCase();
+  if (out.type === "object" && !out.properties) out.properties = {};
+  return out;
+}
+/** Neutral turns → Gemini contents (assistant = "model", tool results = functionResponse parts). */
+export function geminiContents(turns: Turn[]): any[] {
+  const out: any[] = [];
+  for (const t of turns) {
+    if (t.role === "user") out.push({ role: "user", parts: [{ text: t.text || " " }] });
+    else if (t.role === "assistant") {
+      const parts: any[] = [];
+      if (t.text) parts.push({ text: t.text });
+      for (const c of t.calls ?? []) parts.push({ functionCall: { name: c.name, args: c.input ?? {} }, ...(c.sig && { thoughtSignature: c.sig }) });
+      if (parts.length) out.push({ role: "model", parts });
+    } else out.push({ role: "user", parts: t.results.map((r) => ({ functionResponse: { name: r.name, response: { content: r.content } } })) });
+  }
+  return out;
+}
+
+export type AiErrorKind = "auth" | "quota" | "rate" | "model" | "network" | "other";
+/** Turns a provider's raw error into something a non-technical owner can act on. */
+export function explainAiError(provider: string, raw: string): { kind: AiErrorKind; hint: string } {
+  const label = PROVIDERS[provider]?.label ?? provider;
+  const free = Object.entries(PROVIDERS).filter(([, p]) => p.free).map(([, p]) => p.label).slice(0, 4).join(", ");
+  if (/insufficient_quota|no credits|add credits|billing|exceeded your current quota|credit balance|payment required|HTTP 402/i.test(raw))
+    return { kind: "quota", hint: `${label} accepted the key but the account has no credit. API credit is prepaid and separate from a ChatGPT/Claude subscription. Add credit in the provider's billing page, or switch to a free provider (${free}) at no cost.` };
+  if (/HTTP 401|HTTP 403|invalid[_ ]api[_ ]key|incorrect api key|api key not valid|unauthorized|permission denied|API_KEY_INVALID/i.test(raw))
+    return { kind: "auth", hint: `${label} rejected this key. Create a fresh key on the provider's site, copy the whole value with no spaces, and paste it again.` };
+  if (/HTTP 404|model.*(not found|does not exist|not supported|no longer available)|unexpected model name|invalid model/i.test(raw))
+    return { kind: "model", hint: "The model name isn't available on this account. Clear the Model field (use the default) and test again." };
+  if (/HTTP 429|rate.?limit|resource_exhausted|too many requests|quota/i.test(raw))
+    return { kind: "rate", hint: `${label} is rate-limiting this key (normal on free tiers). aiOS moves to the next key in your chain automatically; add a second free provider so there is always one available.` };
+  if (/fetch failed|timeout|timed out|ENOTFOUND|ECONN|network|redirect/i.test(raw))
+    return { kind: "network", hint: "aiOS couldn't reach the provider (network or wrong base URL). Check the base URL, then test again." };
+  return { kind: "other", hint: "The provider returned an unexpected error. Details above." };
+}
+
 /** One chat step with automatic failover across the caller's key chain. */
 export async function chat(o: { system?: string; turns: Turn[]; tools?: ToolSpec[]; maxTokens?: number; json?: boolean; prefer?: string }): Promise<ChatResult> {
   const chain = await resolveChain(o.prefer);
@@ -190,7 +248,13 @@ export async function chat(o: { system?: string; turns: Turn[]; tools?: ToolSpec
   const errors: string[] = [];
   for (const e of list) {
     try {
-      const r = await callEntry(e, { system: o.system, turns: o.turns, tools, maxTokens: o.maxTokens ?? 1500, json: o.json });
+      let r: ChatResult;
+      try { r = await callEntry(e, { system: o.system, turns: o.turns, tools, maxTokens: o.maxTokens ?? 1500, json: o.json }); }
+      catch (first: any) {
+        // A provider/model that rejects our tool format (HTTP 400/422) can still answer in plain text.
+        if (tools?.length && /HTTP (400|422)/.test(String(first?.message))) r = await callEntry(e, { system: o.system, turns: o.turns, maxTokens: o.maxTokens ?? 1500, json: o.json });
+        else throw first;
+      }
       touch(e);
       return r;
     } catch (err: any) {
@@ -207,7 +271,7 @@ export async function complete(o: { system?: string; prompt: string; maxTokens?:
 }
 
 /** Validate a key with a tiny request (used by Settings → AI Keys). Never throws. */
-export async function testKey(provider: string, key: string, model?: string, baseUrl?: string): Promise<{ ok: boolean; ms: number; error?: string }> {
+export async function testKey(provider: string, key: string, model?: string, baseUrl?: string): Promise<{ ok: boolean; ms: number; error?: string; kind?: AiErrorKind; hint?: string }> {
   const spec = PROVIDERS[provider];
   if (!spec) return { ok: false, ms: 0, error: "Unknown provider" };
   const t0 = Date.now();
@@ -216,6 +280,7 @@ export async function testKey(provider: string, key: string, model?: string, bas
     await callEntry(e, { turns: [{ role: "user", text: "Reply with the single word: OK" }], maxTokens: 16 });
     return { ok: true, ms: Date.now() - t0 };
   } catch (err: any) {
-    return { ok: false, ms: Date.now() - t0, error: String(err?.message ?? err).replace(key, "***").slice(0, 240) };
+    const error = String(err?.message ?? err).split(key).join("***").slice(0, 240);
+    return { ok: false, ms: Date.now() - t0, error, ...explainAiError(provider, error) };
   }
 }

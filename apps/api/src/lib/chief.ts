@@ -14,7 +14,7 @@ const safe = async <T,>(p: Promise<T>, d: T): Promise<T> => { try { return await
 export async function buildBriefing(businessId: string): Promise<Briefing> {
   const biz = await db.business.findUnique({ where: { id: businessId } });
   const tz = readConfig(biz).timezone, now = new Date(), since = new Date(Date.now() - 24 * 3600_000), soon = new Date(Date.now() + 7 * 86400_000);
-  const [newLeads, qualified, replies, handoffs, approvals, overdue, atRisk, failedRuns, overdueTasks, bookings] = await Promise.all([
+  const [newLeads, qualified, replies, handoffs, approvals, overdue, atRisk, failedRuns, overdueTasks, bookings, empDrafts, empProblems] = await Promise.all([
     safe(db.lead.count({ where: { businessId, createdAt: { gte: since } } }), 0),
     safe(db.lead.count({ where: { businessId, stage: "QUALIFIED", updatedAt: { gte: since } } }), 0),
     safe(db.message.count({ where: { direction: "INBOUND", createdAt: { gte: since }, conversation: { lead: { businessId } } } }), 0),
@@ -25,6 +25,8 @@ export async function buildBriefing(businessId: string): Promise<Briefing> {
     safe(db.agentRun.count({ where: { status: "failed", startedAt: { gte: since }, agent: { businessId } } }), 0),
     safe(db.task.count({ where: { businessId, status: { not: "done" }, dueDate: { lt: now } } }), 0),
     safe(db.booking.findMany({ where: { businessId, status: "confirmed", startsAt: { gte: now, lte: soon } }, orderBy: { startsAt: "asc" }, take: 20 }), [] as any[]),
+    safe((async () => db.employeeRun.count({ where: { businessId, status: "ok", state: "new", startedAt: { gte: new Date(Date.now() - 36 * 3600_000) } } }))(), 0),
+    safe((async () => db.employeeRun.count({ where: { businessId, status: { in: ["failed", "blocked"] }, startedAt: { gte: since } } }))(), 0),
   ]);
   const today = bookings.filter((b: any) => dayKey(b.startsAt, tz) === dayKey(now, tz)).map((b: any) => ({ when: tf(b.startsAt, tz), title: b.typeTitle, who: b.name }));
   const next = bookings.filter((b: any) => dayKey(b.startsAt, tz) !== dayKey(now, tz)).slice(0, 5).map((b: any) => ({ when: tf(b.startsAt, tz), title: b.typeTitle, who: b.name }));
@@ -35,6 +37,8 @@ export async function buildBriefing(businessId: string): Promise<Briefing> {
     overdueTasks && `${overdueTasks} task(s) are past their due date`,
     atRisk && `${atRisk} project(s) are at risk`,
     failedRuns && `${failedRuns} AI run(s) failed in the last day (check your AI keys)`,
+    empDrafts && `${empDrafts} new draft(s) from your AI employees are ready to review`,
+    empProblems && `${empProblems} AI employee routine(s) could not run (open AI Employees)`,
   ].filter(Boolean) as string[];
   const headlines = [
     today.length ? `${today.length} meeting(s) today` : "No meetings today",

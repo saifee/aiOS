@@ -1,8 +1,9 @@
-import { LayoutDashboard, Users, MessagesSquare, Workflow, Settings, CalendarCheck, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Users, MessagesSquare, Workflow, Settings, CalendarCheck, Bot, type LucideIcon } from "lucide-react";
 
 export const NAV: { href: string; label: string; icon: LucideIcon; hint: string; keywords: string }[] = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard, hint: "Your remixable dashboards", keywords: "dashboard overview widgets kpi" },
   { href: "/workforce", label: "AI Workforce", icon: Users, hint: "Command center, agents, receptionist, studio", keywords: "agents command ceo receptionist studio team approvals" },
+  { href: "/employees", label: "AI Employees", icon: Bot, hint: "Scheduled roles that draft work for you", keywords: "employees routines schedule seo sales social ads csat gtm webdev chief of staff morning brief free" },
   { href: "/comms", label: "Comms", icon: MessagesSquare, hint: "Leads, campaigns, conversations, intelligence", keywords: "leads campaigns conversations crm intelligence bi outreach email whatsapp" },
   { href: "/bookings", label: "Bookings", icon: CalendarCheck, hint: "Booking link, availability, calendar export", keywords: "booking calendar schedule meetings appointments cal calendly availability ics" },
   { href: "/playbooks", label: "Playbooks", icon: Workflow, hint: "Recipes and SOPs your agents follow", keywords: "sop recipes automation process" },

@@ -23,7 +23,7 @@ export function KeysView() {
     setBusy(true);
     try {
       const r = await api("/ai/keys", { method: "POST", body: JSON.stringify({ provider: form.provider, key: form.key, label: form.label || undefined, model: form.model || undefined, baseUrl: form.baseUrl || undefined }) });
-      toast(r.test?.ok ? `${prov(form.provider)?.label} key added and working (${r.test.ms} ms).` : `Key saved, but the test failed: ${r.test?.error}`, r.test?.ok ? "info" : "error");
+      toast(r.test?.ok ? `${prov(form.provider)?.label} key added and working (${r.test.ms} ms).` : `Key saved, but it is not working yet. ${r.test?.hint ?? r.test?.error}`, r.test?.ok ? "info" : "error");
       if (replaceId) { await api(`/ai/keys/${replaceId}`, { method: "DELETE" }).catch(() => {}); setReplaceId(null); }
       setForm(null); mutate(); mutateMe();
     } catch (e: any) { toast(e.message, "error"); }
@@ -35,7 +35,7 @@ export function KeysView() {
     await api("/ai/keys/reorder", { method: "POST", body: JSON.stringify({ ids }) }); mutate();
   }
   const patch = async (id: string, b: any) => { await api(`/ai/keys/${id}`, { method: "PATCH", body: JSON.stringify(b) }); mutate(); mutateMe(); };
-  const test = async (id: string) => { const t = await api(`/ai/keys/${id}/test`, { method: "POST" }); toast(t.ok ? `Working (${t.ms} ms).` : `Failed: ${t.error}`, t.ok ? "info" : "error"); mutate(); };
+  const test = async (id: string) => { const t = await api(`/ai/keys/${id}/test`, { method: "POST" }); toast(t.ok ? `Working (${t.ms} ms).` : `Failed. ${t.hint ?? t.error}`, t.ok ? "info" : "error"); mutate(); };
   const del = async (id: string) => { if (confirm("Remove this key?")) { await api(`/ai/keys/${id}`, { method: "DELETE" }); mutate(); mutateMe(); } };
 
   return (
@@ -69,7 +69,7 @@ export function KeysView() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">{p?.label ?? k.provider}{k.label && <span className="font-normal text-ink/50">· {k.label}</span>}{p?.free && <span className="tag">free tier</span>}</div>
                   <div className="text-xs text-ink/50">••••{k.hint} · {k.model || p?.model || "default model"}</div>
-                  {k.lastError ? <div className="mt-1 flex items-start gap-1 text-xs text-danger"><XCircle className="mt-0.5 h-3 w-3 shrink-0" />{k.lastError}</div>
+                  {k.lastError ? <div className="mt-1 flex items-start gap-1 text-xs text-danger"><XCircle className="mt-0.5 h-3 w-3 shrink-0" /><span>{k.lastError}{k.hintText && <span className="mt-1 block rounded bg-amber-50 p-2 text-amber-900">{k.hintText}</span>}</span></div>
                     : ok ? <div className="mt-1 flex items-center gap-1 text-xs text-ok"><CheckCircle2 className="h-3 w-3" />Working · checked {new Date(k.lastOkAt).toLocaleString()}</div> : null}
                   {/decrypt/i.test(k.lastError ?? "") && <button className="mt-1 text-xs font-semibold text-signal underline" onClick={() => { setReplaceId(k.id); setForm({ provider: k.provider, key: "", label: k.label ?? "", model: "", baseUrl: k.baseUrl ?? "" }); }}>Re-enter this key</button>}
                   {k.model && <button className="ms-3 mt-1 text-xs font-semibold text-signal underline" onClick={async () => { await patch(k.id, { model: null }); test(k.id); }}>Use the default model</button>}
