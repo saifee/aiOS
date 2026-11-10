@@ -50,13 +50,6 @@ export function BusinessView() {
     setSaved(true); setTimeout(() => setSaved(false), 2000); mutate();
   }
 
-  const Field = ({ label, k, hint, type = "text" }: any) => (
-    <label className="block">
-      <span className="text-xs font-medium text-ink/60">{label}</span>
-      <input className="input mt-1" type={type} value={f[k] ?? ""} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
-      {hint && <span className="text-xs text-ink/40">{hint}</span>}
-    </label>
-  );
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -64,36 +57,46 @@ export function BusinessView() {
 
       <section className="card space-y-4">
         <h2 className="text-sm font-semibold">What you sell</h2>
-        <Field label="Business name" k="name" />
-        <Field label="Description" k="description" hint="One paragraph the AI uses to pitch you." />
-        <Field label="Services / products" k="services" hint="Comma-separated" />
-        <Field label="Industries you serve" k="industriesServed" hint="e.g. Retail, Logistics, Healthcare" />
+        <Field f={f} setF={setF} label="Business name" k="name" />
+        <Field f={f} setF={setF} label="Description" k="description" hint="One paragraph the AI uses to pitch you." />
+        <Field f={f} setF={setF} label="Services / products" k="services" hint="Comma-separated" />
+        <Field f={f} setF={setF} label="Industries you serve" k="industriesServed" hint="e.g. Retail, Logistics, Healthcare" />
       </section>
 
       <section className="card space-y-4">
         <h2 className="text-sm font-semibold">Who to hunt</h2>
-        <Field label="Target countries" k="targetCountries" hint="ISO codes: SA, AE, QA…" />
-        <Field label="Target cities" k="targetCities" />
-        <Field label="Search keywords" k="keywords" />
-        <Field label="Negative keywords" k="negativeKeywords" hint="Never contact matches" />
-        <Field label="Decision-maker titles" k="decisionMakerTitles" />
-        <Field label="Minimum lead score to contact" k="minLeadScore" type="number" />
+        <Field f={f} setF={setF} label="Target countries" k="targetCountries" hint="ISO codes: SA, AE, QA…" />
+        <Field f={f} setF={setF} label="Target cities" k="targetCities" />
+        <Field f={f} setF={setF} label="Search keywords" k="keywords" />
+        <Field f={f} setF={setF} label="Negative keywords" k="negativeKeywords" hint="Never contact matches" />
+        <Field f={f} setF={setF} label="Decision-maker titles" k="decisionMakerTitles" />
+        <Field f={f} setF={setF} label="Minimum lead score to contact" k="minLeadScore" type="number" />
       </section>
 
       <section className="card space-y-4">
         <h2 className="text-sm font-semibold">How to reach out</h2>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Max outreach per day" k="maxOutreachPerDay" type="number" />
-          <Field label="Timezone" k="timezone" />
-          <Field label="Working hours start" k="workingHoursStart" />
-          <Field label="Working hours end" k="workingHoursEnd" />
+          <Field f={f} setF={setF} label="Max outreach per day" k="maxOutreachPerDay" type="number" />
+          <Field f={f} setF={setF} label="Timezone" k="timezone" />
+          <Field f={f} setF={setF} label="Working hours start" k="workingHoursStart" />
+          <Field f={f} setF={setF} label="Working hours end" k="workingHoursEnd" />
         </div>
-        <Field label="Languages" k="languages" hint="en, ar, ur…" />
-        <Field label="Tone" k="tone" hint="professional | friendly | consultative" />
-        <Field label="Cal.com / Calendly link (optional)" k="calendarLink" hint="Used when you prefer an outside booking page over the built-in one (see Bookings)" />
+        <Field f={f} setF={setF} label="Languages" k="languages" hint="en, ar, ur…" />
+        <Field f={f} setF={setF} label="Tone" k="tone" hint="professional | friendly | consultative" />
+        <Field f={f} setF={setF} label="Cal.com / Calendly link (optional)" k="calendarLink" hint="Used when you prefer an outside booking page over the built-in one (see Bookings)" />
       </section>
 
       <button className="btn" onClick={save}>{saved ? "Saved ✓" : bid ? "Save changes" : "Create business & start hunting"}</button>
     </div>
+  );
+}
+
+function Field({ label, k, hint, type = "text", f, setF }: { label: string; k: string; hint?: string; type?: string; f: any; setF: (v: any) => void }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-ink/60">{label}</span>
+      <input className="input mt-1" type={type} value={f[k] ?? ""} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+      {hint && <span className="text-xs text-ink/40">{hint}</span>}
+    </label>
   );
 }

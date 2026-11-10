@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1
+
+- Fix: typing in the Business profile form accepted one letter and then lost the cursor. The form fields were being rebuilt on every keystroke; they are now stable, so you can type normally.
+
 ## 1.8.0
 
 - **AI Employees** (new page): eight roles (Go-to-market, SEO, Web developer, Social media, Ads, Sales, Customer success, Chief of Staff) with 20 scheduled routines, inspired by the markfulton/ai-employees idea. Switch a role on and it runs its routines on a schedule in your business time zone (morning signal sweep, weekly content plan, Friday sales review, monthly retro and more), using your own leads, conversations, bookings and invoices. Each routine runs once per period, retries after a failure, and is capped per day (default 12).
