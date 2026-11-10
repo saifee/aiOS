@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2
+
+- Security: cleared the 13-item scanner report. Next.js updated to 16.4.6 (fixes the 2 critical remote-code-execution advisories and a Server Actions denial-of-service), zod updated to 4.6.7 (high: memory exhaustion on oversized input), plus fast-uri and qs. Tool schemas now use zod's built-in JSON Schema export. `npm audit` reports 0 vulnerabilities.
+
 ## 1.8.1
 
 - Fix: typing in the Business profile form accepted one letter and then lost the cursor. The form fields were being rebuilt on every keystroke; they are now stable, so you can type normally.

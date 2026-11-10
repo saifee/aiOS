@@ -27,7 +27,7 @@ export async function integrationRoutes(app: FastifyInstance) {
       const b: any = req.body;
       if (!b?.config?.phoneNumberId || !/^\d{5,25}$/.test(String(b.config.phoneNumberId))) throw Object.assign(new Error("Phone number ID must be the numeric ID from Meta (WhatsApp → API setup)."), { statusCode: 400 });
     }
-    const { credentials, config } = z.object({ credentials: z.record(z.string().max(2000)).refine((c) => Object.keys(c).length <= 20).optional(), config: z.record(z.any()).optional() }).strict().parse(req.body);
+    const { credentials, config } = z.object({ credentials: z.record(z.string(), z.string().max(2000)).refine((c) => Object.keys(c).length <= 20).optional(), config: z.record(z.string(), z.any()).optional() }).strict().parse(req.body);
     if (config && JSON.stringify(config).length > 20_000) throw Object.assign(new Error("config too large"), { statusCode: 413 });
     await prisma.integration.upsert({
       where: { businessId_provider: { businessId, provider } },
